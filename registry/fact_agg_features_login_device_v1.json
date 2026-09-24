@@ -24,12 +24,7 @@
     "kmv_k": 64,
     "separator": "_",
     "source_is_append_only": true,
-    "materialized_mart": "incremental",
-    "target_dialects": [
-      "duckdb",
-      "databricks",
-      "snowflake"
-    ]
+    "materialized_mart": "incremental"
   },
   "models": {
     "staging": "stg_fact_agg_features_login_device_v1",

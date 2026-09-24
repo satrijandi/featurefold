@@ -10,7 +10,6 @@ feature-level changelog.
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -74,7 +73,7 @@ def build_registry(plan: FeaturePlan, generated_at: str | None = None) -> dict:
             }
             for rel in spec.relations.values()
         ],
-        "settings": asdict(spec.settings),
+        "settings": spec.settings.model_dump(),
         "models": models,
         "expansion": {
             "atomic_fields": len(spec.fields),

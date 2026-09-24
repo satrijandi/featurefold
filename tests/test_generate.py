@@ -55,6 +55,18 @@ def test_generated_sql_has_no_unresolved_placeholders(plan, tmp_path):
             assert "{0}" not in f.content and "{1}" not in f.content, f.path.name
 
 
+def test_relations_sharing_a_prefix_resolve_to_their_own_sources(write_spec, base_spec):
+    """Substituting `bronze.db.events` must not rewrite part of `bronze.db.events_blocklist`."""
+    src = base_spec.replace(
+        "  WHERE customer_id IS NOT NULL",
+        "  WHERE customer_id NOT IN (SELECT id FROM bronze.db.events_blocklist)",
+    ) + ("  bronze.db.events_blocklist:\n    source_name: bronze\n    table_name: blocklist\n")
+    staging = Renderer(build_plan(load_spec(write_spec(src)))).render_staging()
+    assert "FROM {{ source('bronze', 'events') }}\n" in staging
+    assert "FROM {{ source('bronze', 'blocklist') }})" in staging
+    assert "bronze.db." not in staging
+
+
 def test_every_generated_file_is_marked_generated(plan, tmp_path):
     for f in Renderer(plan).render_all(tmp_path):
         assert "GENERATED FILE - DO NOT EDIT" in f.content

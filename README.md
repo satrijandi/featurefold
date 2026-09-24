@@ -22,7 +22,7 @@ Those are different jobs with different dependencies, so they are different thin
 
 | | what it is | what it depends on |
 |---|---|---|
-| **this directory** | the compiler, its generated output, and the dbt runtime library that output calls into | `pyyaml`, `jinja2`, `pydantic`, `click`, `jsonschema` |
+| **this directory** | the compiler, its generated output, and the dbt runtime library that output calls into | `pyyaml`, `jinja2`, `pydantic`, `click` |
 | **[`showcase/`](showcase/)** | an end-to-end proof: DuckDB, a synthetic fixture, SeaweedFS, Airflow, JupyterLab | all of the above plus dbt-core, dbt-duckdb, boto3, Jupyter |
 
 CI asserts the boundary rather than trusting it: the generator job fails if installing this package pulls in dbt, and the showcase job fails if running the pipeline writes anything back into `transform/`.
@@ -231,7 +231,7 @@ So the suite is layered, and the layers are split across the two halves of the r
 
 | Layer | What it catches | Run |
 |---|---|---|
-| 67 unit tests | expansion, naming, Jinja composition, the refreshable-window rule, every spec guard | `make test` |
+| 83 unit tests | expansion, naming, Jinja composition, the refreshable-window rule, every spec guard | `make test` |
 | drift check | a generated model edited by hand, or a spec changed without regenerating | `make check` |
 | ~1,170 generated invariants | window monotonicity, marginal dominance, min <= max, non-negativity - checked in one scan per test | `make -C showcase dbt-test` |
 | 25 conformance contracts | a dialect primitive behaving differently from its spec | `make -C showcase dbt-test` |

@@ -145,6 +145,66 @@ def test_non_daily_cadence_is_rejected(write_spec, base_spec):
         load_spec(write_spec(base_spec.replace('feature_type: "daily"', 'feature_type: "hourly"')))
 
 
+@pytest.mark.parametrize(
+    ("addition", "names"),
+    [
+        # A misspelt setting would otherwise fall back to its default without a word.
+        ("settings:\n  late_arival_days: 1\n", "settings.late_arival_days"),
+        ("time_catt: ['l30d']\n", "time_catt"),
+        ("settings:\n  target_dialects: [duckdb]\n", "settings.target_dialects"),
+    ],
+)
+def test_unknown_keys_are_rejected(write_spec, base_spec, addition, names):
+    with pytest.raises(SpecError, match=rf"{names}: unknown key"):
+        load_spec(write_spec(base_spec + addition))
+
+
+def test_unknown_atomic_field_key_is_rejected(write_spec, base_spec):
+    bad = base_spec.replace(
+        "      agg: ['count']", "      agg: ['count']\n      distinct_methd: approx"
+    )
+    with pytest.raises(SpecError, match=r"atomic_field\.event_id\.distinct_methd: unknown key"):
+        load_spec(write_spec(bad))
+
+
+def test_unknown_relation_key_is_rejected(write_spec, base_spec):
+    bad = base_spec.replace("    table_name: events", "    table_name: events\n    tabel: x")
+    with pytest.raises(SpecError, match=r"relations\.bronze\.db\.events\.tabel: unknown key"):
+        load_spec(write_spec(bad))
+
+
+@pytest.mark.parametrize(
+    ("setting", "names"),
+    [
+        # A quoted number is a type error, not something to coerce and hope.
+        ("late_arrival_days: '3'", "settings.late_arrival_days"),
+        ("late_arrival_days: -1", "settings.late_arrival_days"),
+        ("kmv_k: 8", "settings.kmv_k"),
+        ("materialized_mart: banana", "settings.materialized_mart"),
+        ("entity_spine: sometimes", "settings.entity_spine"),
+        ("window_convention: centred", "settings.window_convention"),
+        ("source_is_append_only: 'yes'", "settings.source_is_append_only"),
+        # The separator is spliced into every generated column name.
+        ("separator: '-'", "settings.separator"),
+    ],
+)
+def test_invalid_settings_are_rejected(write_spec, base_spec, setting, names):
+    with pytest.raises(SpecError, match=rf"{names}: "):
+        load_spec(write_spec(base_spec + f"settings:\n  {setting}\n"))
+
+
+def test_empty_settings_block_takes_the_defaults(write_spec, base_spec):
+    spec = load_spec(write_spec(base_spec + "settings:\n"))
+    assert spec.settings.late_arrival_days == 3
+
+
+def test_relation_must_appear_as_a_whole_name(write_spec, base_spec):
+    """`bronze.db.event` is a prefix of `bronze.db.events`, not a mention of it."""
+    bad = base_spec.replace("relations:\n  bronze.db.events:", "relations:\n  bronze.db.event:")
+    with pytest.raises(SpecError, match="does not appear in the source SQL"):
+        load_spec(write_spec(bad))
+
+
 def test_spec_hash_tracks_content(write_spec, base_spec):
     a = load_spec(write_spec(base_spec)).spec_hash
     b = load_spec(

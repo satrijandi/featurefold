@@ -23,7 +23,7 @@ from pathlib import Path
 
 from generator.expand import ComputedFeature, FeaturePlan, StoredFeature
 from generator.expr import Expr
-from generator.spec import TARGET_DATE_RE, FeatureSpec, TimeWindow
+from generator.spec import TARGET_DATE_RE, FeatureSpec, TimeWindow, substitute_relations
 
 GENERATOR = "featuremart"
 
@@ -132,8 +132,7 @@ class Renderer:
         assert ps is not None
 
         def subst(sql: str) -> str:
-            for rel in self.spec.relations.values():
-                sql = sql.replace(rel.literal, rel.dbt_ref)
+            sql = substitute_relations(sql, self.spec.relations)
             return TARGET_DATE_RE.sub("{{ fs_target_date_str() }}", sql)
 
         # An expression whose value moves with the as-of date is removed here,

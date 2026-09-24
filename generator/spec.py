@@ -12,9 +12,10 @@ import re
 from dataclasses import dataclass
 from dataclasses import field as dc_field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 # Aggregations whose partial state is a plain scalar carried straight through.
 SCALAR_AGGS = {"count", "sum", "min", "max"}
@@ -107,6 +108,25 @@ class SourceRelation:
         return f"{{{{ source('{self.source_name}', '{self.table_name}') }}}}"
 
 
+def _relation_re(literals: list[str]) -> re.Pattern[str]:
+    """Match any of `literals` as a whole relation name, never as part of a longer one.
+
+    Without the boundaries `bronze.db.events` would match inside
+    `bronze.db.events_blocklist` and splice the wrong source() into it. Longest
+    first, so of two names where one is a prefix of the other, each position
+    resolves to the name actually written there.
+    """
+    alts = "|".join(re.escape(lit) for lit in sorted(literals, key=len, reverse=True))
+    return re.compile(rf"(?<![\w.])(?:{alts})(?![\w])")
+
+
+def substitute_relations(sql: str, relations: dict[str, SourceRelation]) -> str:
+    """Replace every mapped relation name in `sql` with its dbt source()."""
+    if not relations:
+        return sql
+    return _relation_re(list(relations)).sub(lambda m: relations[m.group(0)].dbt_ref, sql)
+
+
 @dataclass(frozen=True)
 class Derivation:
     """A column reconstructed at scoring time rather than stored in partials."""
@@ -141,38 +161,94 @@ class TimeWindow:
         return self.days is None
 
 
-@dataclass
-class Settings:
+class Settings(BaseModel):
+    # Strict, so a quoted number or a misspelt key is an error rather than a
+    # coercion or a silently applied default.
+    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
+
     # l7d at target_date T means event_date in [T-6, T] under "inclusive",
     # or [T-7, T-1] under "trailing" (yesterday-and-back, no same-day leakage).
-    window_convention: str = "inclusive"
+    window_convention: Literal["inclusive", "trailing"] = "inclusive"
     # Which entities get a row on each daily snapshot.
-    entity_spine: str = "all_time"  # all_time | active_window
+    entity_spine: Literal["all_time", "active_window"] = "all_time"
     # Days of already-seen event_dates each run recomputes, to absorb late
     # arrivals. all_time state seals only up to T - late_arrival_days.
-    late_arrival_days: int = 3
-    # k for the KMV sketch backing distinct_method: approx.
-    kmv_k: int = 256
-    separator: str = "_"
+    late_arrival_days: int = Field(default=3, ge=0)
+    # k for the KMV sketch backing distinct_method: approx. Below 16 the
+    # estimate is too noisy to be usable.
+    kmv_k: int = Field(default=256, ge=16)
+    # Joins the parts of every generated column name, so it must keep them
+    # valid unquoted identifiers.
+    separator: str = Field(default="_", pattern=r"^[a-z0-9_]+$")
     source_is_append_only: bool = True
-    materialized_mart: str = "incremental"
-    target_dialects: tuple[str, ...] = ("duckdb", "databricks", "snowflake")
+    materialized_mart: Literal["incremental", "table"] = "incremental"
 
-    def validate(self) -> None:
-        if self.window_convention not in ("inclusive", "trailing"):
-            raise SpecError(
-                f"settings.window_convention must be 'inclusive' or 'trailing', "
-                f"got {self.window_convention!r}"
+
+# --------------------------------------------------------------------------- #
+# Document shape
+#
+# These models check only the shape of a spec: which keys exist and what type
+# each value has. What the values mean -- whether a field is produced by the
+# source, whether a predicate depends on target_date -- is checked by the
+# parsers and validate_spec below, which work from the raw mapping.
+# --------------------------------------------------------------------------- #
+
+_STRICT = ConfigDict(extra="forbid", strict=True)
+
+
+class _DerivedDoc(BaseModel):
+    model_config = _STRICT
+    kind: str
+    from_: str = Field(alias="from")
+
+
+class _AtomicFieldDoc(BaseModel):
+    model_config = _STRICT
+    apply_cond_cat: list[str] | None = None
+    agg: list[str]
+    field_type: str | None = None
+    distinct_method: str | None = None
+    derived: _DerivedDoc | None = None
+    description: str | None = None
+
+
+class _RelationDoc(BaseModel):
+    model_config = _STRICT
+    source_name: str
+    table_name: str
+
+
+class _SpecDoc(BaseModel):
+    model_config = _STRICT
+    feature_name: str
+    feature_type: str | None = None
+    created_by: str | None = None
+    description: str | None = None
+    source: str
+    entities: list[str]
+    timestamp_col: str
+    condition_cat: list[dict[str, list[dict[str, str]]]] | None = None
+    time_cat: list[str]
+    atomic_field: list[dict[str, _AtomicFieldDoc]]
+    settings: Settings | None = None
+    relations: dict[str, _RelationDoc] | None = None
+
+
+def _shape_error(path: Path, exc: ValidationError) -> SpecError:
+    """Restate pydantic's errors in the dotted key paths a spec author writes."""
+    lines = []
+    for err in exc.errors():
+        where = ".".join(str(p) for p in err["loc"] if not isinstance(p, int)) or "<top level>"
+        if err["type"] == "extra_forbidden":
+            lines.append(
+                f"  {where}: unknown key. Check the spelling against "
+                "features/examples/every_optional_key.yml."
             )
-        if self.entity_spine not in ("all_time", "active_window"):
-            raise SpecError(
-                f"settings.entity_spine must be 'all_time' or 'active_window', "
-                f"got {self.entity_spine!r}"
-            )
-        if self.late_arrival_days < 0:
-            raise SpecError("settings.late_arrival_days must be >= 0")
-        if self.kmv_k < 16:
-            raise SpecError("settings.kmv_k must be >= 16 to give a usable estimate")
+        elif err["type"] == "missing":
+            lines.append(f"  {where}: required key is missing")
+        else:
+            lines.append(f"  {where}: {err['msg']} (got {err['input']!r})")
+    return SpecError(f"{path}: invalid spec\n" + "\n".join(lines))
 
 
 @dataclass
@@ -515,10 +591,10 @@ def load_spec(path: str | Path) -> FeatureSpec:
     if not isinstance(raw, dict):
         raise SpecError(f"{path}: top level of a feature spec must be a mapping")
 
-    required = ["feature_name", "source", "entities", "timestamp_col", "time_cat", "atomic_field"]
-    missing = [k for k in required if k not in raw]
-    if missing:
-        raise SpecError(f"{path}: missing required key(s): {missing}")
+    try:
+        doc = _SpecDoc.model_validate(raw)
+    except ValidationError as exc:
+        raise _shape_error(path, exc) from None
 
     feature_name = str(raw["feature_name"]).strip()
     if not IDENT_RE.match(feature_name):
@@ -538,20 +614,13 @@ def load_spec(path: str | Path) -> FeatureSpec:
     windows = _parse_windows(raw["time_cat"])
     fields = _parse_fields(raw["atomic_field"], categories)
 
-    settings = Settings(**(raw.get("settings") or {}))
-    settings.validate()
-
-    relations: dict[str, SourceRelation] = {}
-    for literal, cfg in (raw.get("relations") or {}).items():
-        if not isinstance(cfg, dict) or "source_name" not in cfg or "table_name" not in cfg:
-            raise SpecError(
-                f"relations.{literal}: expected a mapping with 'source_name' and 'table_name'"
-            )
-        relations[str(literal)] = SourceRelation(
-            literal=str(literal),
-            source_name=str(cfg["source_name"]),
-            table_name=str(cfg["table_name"]),
+    settings = doc.settings or Settings()
+    relations = {
+        literal: SourceRelation(
+            literal=literal, source_name=cfg.source_name, table_name=cfg.table_name
         )
+        for literal, cfg in (doc.relations or {}).items()
+    }
 
     spec = FeatureSpec(
         feature_name=feature_name,
@@ -712,10 +781,10 @@ def validate_spec(spec: FeatureSpec) -> None:
                 seen_members[member.name] = cat_name
 
     for literal in spec.relations:
-        if literal not in spec.source_sql:
+        if not _relation_re([literal]).search(spec.source_sql):
             raise SpecError(
                 f"relations declares {literal!r} but that text does not appear in the source SQL. "
-                "The mapping is a literal substitution, so it must match exactly."
+                "The mapping substitutes whole relation names, so it must match one exactly."
             )
 
     unmapped = re.findall(r"(?is)\bfrom\s+([a-z_][\w]*(?:\.[a-z_][\w]*)+)", spec.source_sql)
