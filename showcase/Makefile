@@ -55,8 +55,11 @@ seed:  ## Generate the synthetic fixture and load it as the bronze source
 	$(PY) -m tools.gen_seed
 
 # --- dbt --------------------------------------------------------------------
-dbt-backfill:  ## Initial load: build all partials from BACKFILL_FROM in one pass
-	$(DBT) run --vars '{target_date: $(TARGET_DATE), fs_backfill_from: $(BACKFILL_FROM)}'
+# --full-refresh, because a backfill restarts history. Without it an existing
+# all_time accumulator keeps its watermark, which then sits ahead of every date
+# the backfill goes on to serve, and every all_time feature leaks the future.
+dbt-backfill:  ## Initial load: rebuild everything from BACKFILL_FROM in one pass
+	$(DBT) run --full-refresh --vars '{target_date: $(TARGET_DATE), fs_backfill_from: $(BACKFILL_FROM)}'
 
 dbt-run:  ## Build one as-of date
 	$(DBT) run --vars '{target_date: $(TARGET_DATE)}'
