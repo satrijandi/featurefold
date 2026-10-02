@@ -57,7 +57,7 @@ from generator.registry import Registry
 # are the showcase's and live beside this DAG. Keeping the two roots separate
 # here is what lets the same DAG point at a production deployment of the same
 # generated project by changing one environment variable.
-PROJECT_ROOT = Path(os.getenv("FS_PROJECT_ROOT", "/opt/feature-mart"))
+PROJECT_ROOT = Path(os.getenv("FS_PROJECT_ROOT", "/opt/featurefold"))
 SHOWCASE_ROOT = Path(os.getenv("FS_SHOWCASE_ROOT", str(PROJECT_ROOT / "showcase")))
 DBT_DIR = PROJECT_ROOT / "transform"
 REGISTRY_DIR = PROJECT_ROOT / "registry"

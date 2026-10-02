@@ -1,4 +1,4 @@
-# feature-mart
+# featurefold
 
 A config-driven feature store compiler.
 One YAML spec compiles into a complete dbt project: staging, a reusable partial-aggregate layer, window roll-ups, an incremental `all_time` accumulator, a wide published mart, column-level documentation, a machine-readable feature registry, and over a thousand generated invariant tests.

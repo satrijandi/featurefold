@@ -5,7 +5,7 @@
 --   feature    : fact_agg_features_login_device_v1
 --   spec       : features/fact_agg_features_login_device_v1.yml
 --   spec hash  : e1ebed8aec82
---   generator  : featuremart
+--   generator  : featurefold
 --
 -- Edit the spec and run `make generate`. CI fails when a generated file
 -- differs from what the spec produces, so this file and the spec cannot

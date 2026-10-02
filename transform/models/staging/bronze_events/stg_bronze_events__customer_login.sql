@@ -4,7 +4,7 @@
 --   layer      : staging
 --   source     : bronze_events.customer_login
 --   read by    : fact_agg_features_login_device_v1, fact_agg_features_login_history_v2
---   generator  : featuremart
+--   generator  : featurefold
 --
 -- Generated from the `relations:` block of the specs above. Edit those and
 -- run `make generate`.

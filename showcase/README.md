@@ -1,4 +1,4 @@
-# feature-mart showcase
+# featurefold showcase
 
 The compiler in the repository root turns a YAML spec into a dbt project.
 This directory is where that project is actually run, end to end, on a stack that looks like the one it would run on in production.
@@ -81,7 +81,7 @@ No code and no compose default falls back to a secret; a missing one stops the t
 A deployment keeps the same shape and backs the Connection with its secrets manager.
 Inside the Airflow image dbt has a virtualenv of its own, so dbt and Airflow never have to agree on a shared dependency.
 
-The containers mount the whole repository at `/opt/feature-mart` and work from `/opt/feature-mart/showcase`, so the DAG runs the same generated models that are committed in `../transform`.
+The containers mount the whole repository at `/opt/featurefold` and work from `/opt/featurefold/showcase`, so the DAG runs the same generated models that are committed in `../transform`.
 
 ## The published offline store
 

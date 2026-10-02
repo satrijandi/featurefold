@@ -1,6 +1,6 @@
 packages:
   - local: ../../transform
-    name: feature_mart
+    name: featurefold
   - name: dbt_project_evaluator
     package: dbt-labs/dbt_project_evaluator
     version: 1.4.0

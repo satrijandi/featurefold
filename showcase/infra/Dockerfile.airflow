@@ -1,4 +1,4 @@
-# Airflow with dbt-core and the feature-mart generator on the same image, so a
+# Airflow with dbt-core and the featurefold generator on the same image, so a
 # task can regenerate models and run them without a second toolchain.
 FROM apache/airflow:2.10.5-python3.11
 
@@ -29,4 +29,4 @@ RUN pip install --no-cache-dir \
 # Tasks run from the showcase directory, which is what makes `python -m tools.x`
 # resolve. The compiler is installed into site-packages above, so nothing here
 # depends on the repository layout beyond that.
-WORKDIR /opt/feature-mart/showcase
+WORKDIR /opt/featurefold/showcase

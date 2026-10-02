@@ -1,4 +1,4 @@
-"""featuremart CLI: compile feature specs into dbt models and a feature registry."""
+"""featurefold CLI: compile feature specs into dbt models and a feature registry."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ def _spec_files(specs_dir: Path) -> list[Path]:
 
 
 @click.group()
-@click.version_option(package_name="feature-mart")
+@click.version_option(package_name="featurefold")
 def cli() -> None:
     """Compile YAML feature specs into dbt models, tests and a feature registry."""
 

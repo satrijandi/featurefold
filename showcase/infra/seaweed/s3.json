@@ -1,9 +1,9 @@
 {
   "identities": [
     {
-      "name": "featuremart",
+      "name": "featurefold",
       "credentials": [
-        { "accessKey": "featuremart", "secretKey": "featuremart" }
+        { "accessKey": "featurefold", "secretKey": "featurefold" }
       ],
       "actions": ["Admin", "Read", "Write", "List", "Tagging"]
     }

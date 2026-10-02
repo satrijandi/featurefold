@@ -41,7 +41,7 @@ SQL_HEADER = """\
 --   layer      : staging
 --   source     : {source}.{table}
 --   read by    : {consumers}
---   generator  : featuremart
+--   generator  : featurefold
 --
 -- Generated from the `relations:` block of the specs above. Edit those and
 -- run `make generate`.

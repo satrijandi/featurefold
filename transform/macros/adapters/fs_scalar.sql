@@ -22,7 +22,7 @@
 {% macro fs_hash_mod() %}9007199254740881{% endmacro %}
 
 {% macro fs_hash_unit(expr) -%}
-  {{ return(adapter.dispatch('fs_hash_unit', 'feature_mart')(expr)) }}
+  {{ return(adapter.dispatch('fs_hash_unit', 'featurefold')(expr)) }}
 {%- endmacro %}
 
 {% macro default__fs_hash_unit(expr) -%}
@@ -40,7 +40,7 @@
 
 {# ------------------------------------------------------------ datediff_day #}
 {% macro fs_datediff_day(start_expr, end_expr) -%}
-  {{ return(adapter.dispatch('fs_datediff_day', 'feature_mart')(start_expr, end_expr)) }}
+  {{ return(adapter.dispatch('fs_datediff_day', 'featurefold')(start_expr, end_expr)) }}
 {%- endmacro %}
 
 {% macro default__fs_datediff_day(start_expr, end_expr) -%}
@@ -67,7 +67,7 @@ datediff(day, cast({{ start_expr }} as date), cast({{ end_expr }} as date))
   {%- if from_tz == to_tz -%}
     cast({{ expr }} as timestamp)
   {%- else -%}
-    {{ return(adapter.dispatch('fs_convert_tz', 'feature_mart')(expr, from_tz, to_tz)) }}
+    {{ return(adapter.dispatch('fs_convert_tz', 'featurefold')(expr, from_tz, to_tz)) }}
   {%- endif -%}
 {%- endmacro %}
 

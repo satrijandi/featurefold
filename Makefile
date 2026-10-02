@@ -1,5 +1,5 @@
 # =============================================================================
-# feature-mart -- the compiler.
+# featurefold -- the compiler.
 #
 # The contract: `features/*.yml` is the only file a human edits. Everything
 # under transform/models, transform/tests and registry/ is generated, committed

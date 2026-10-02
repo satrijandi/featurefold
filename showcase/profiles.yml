@@ -6,7 +6,7 @@
 # DBT_DUCKDB_PATH is set by the Makefile and by the DAG. The bare default only
 # applies when dbt is invoked by hand, and then resolves against the working
 # directory.
-feature_mart:
+featurefold:
   target: "{{ env_var('DBT_TARGET', 'local') }}"
   outputs:
 

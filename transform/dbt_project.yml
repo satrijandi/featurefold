@@ -11,13 +11,13 @@
 # end-to-end showcase in ../showcase does exactly that, and so would a
 # production deployment.
 # =============================================================================
-name: "feature_mart"
+name: "featurefold"
 version: "0.1.0"
 config-version: 2
 
 # Resolved from the caller's --profiles-dir. See ../showcase/profiles.yml for a
 # worked example covering DuckDB, Databricks and Snowflake.
-profile: "feature_mart"
+profile: "featurefold"
 
 model-paths: ["models"]
 macro-paths: ["macros"]
@@ -33,7 +33,7 @@ vars:
   fs_kmv_k: 256
 
 models:
-  feature_mart:
+  featurefold:
     +persist_docs:
       relation: true
       columns: true

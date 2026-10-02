@@ -35,7 +35,7 @@ from generator.spec import (
     substitute_relations,
 )
 
-GENERATOR = "featuremart"
+GENERATOR = "featurefold"
 
 # Logical type -> the SQL type the mart's contract declares. Spelled the way
 # DuckDB, Databricks and Snowflake all accept in DDL.

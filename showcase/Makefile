@@ -1,5 +1,5 @@
 # =============================================================================
-# feature-mart -- the end-to-end showcase.
+# featurefold -- the end-to-end showcase.
 #
 # The compiler in the repository root turns feature specs into a dbt project.
 # This directory is what proves that project produces the right numbers: a

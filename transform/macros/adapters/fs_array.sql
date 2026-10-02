@@ -23,7 +23,7 @@
 
 {# -------------------------------------------------------------- collect_set #}
 {% macro fs_collect_set(expr) -%}
-  {{ return(adapter.dispatch('fs_collect_set', 'feature_mart')(expr)) }}
+  {{ return(adapter.dispatch('fs_collect_set', 'featurefold')(expr)) }}
 {%- endmacro %}
 
 {% macro default__fs_collect_set(expr) -%}
@@ -41,7 +41,7 @@ array_compact(array_agg(distinct {{ expr }}))
 
 {# ---------------------------------------------------------- array_union_agg #}
 {% macro fs_array_union_agg(col) -%}
-  {{ return(adapter.dispatch('fs_array_union_agg', 'feature_mart')(col)) }}
+  {{ return(adapter.dispatch('fs_array_union_agg', 'featurefold')(col)) }}
 {%- endmacro %}
 
 {% macro default__fs_array_union_agg(col) -%}
@@ -59,7 +59,7 @@ array_distinct(array_flatten(array_compact(array_agg({{ col }}))))
 
 {# ------------------------------------------------------------- array_union2 #}
 {% macro fs_array_union2(a, b) -%}
-  {{ return(adapter.dispatch('fs_array_union2', 'feature_mart')(a, b)) }}
+  {{ return(adapter.dispatch('fs_array_union2', 'featurefold')(a, b)) }}
 {%- endmacro %}
 
 {% macro default__fs_array_union2(a, b) -%}
@@ -78,7 +78,7 @@ array_distinct(array_flatten(array_construct_compact({{ a }}, {{ b }})))
 {# --------------------------------------------------------------- array_size #}
 {#- NULL must map to 0, not to NULL and not to Spark legacy -1. -#}
 {% macro fs_array_size(a) -%}
-  {{ return(adapter.dispatch('fs_array_size', 'feature_mart')(a)) }}
+  {{ return(adapter.dispatch('fs_array_size', 'featurefold')(a)) }}
 {%- endmacro %}
 
 {% macro default__fs_array_size(a) -%}
@@ -96,7 +96,7 @@ array_distinct(array_flatten(array_construct_compact({{ a }}, {{ b }})))
 
 {# --------------------------------------------------------------- array_sort #}
 {% macro fs_array_sort(a) -%}
-  {{ return(adapter.dispatch('fs_array_sort', 'feature_mart')(a)) }}
+  {{ return(adapter.dispatch('fs_array_sort', 'featurefold')(a)) }}
 {%- endmacro %}
 
 {% macro default__fs_array_sort(a) -%}
@@ -114,7 +114,7 @@ array_sort({{ a }})
 
 {# --------------------------------------------------------------- array_head #}
 {% macro fs_array_head(a, n) -%}
-  {{ return(adapter.dispatch('fs_array_head', 'feature_mart')(a, n)) }}
+  {{ return(adapter.dispatch('fs_array_head', 'featurefold')(a, n)) }}
 {%- endmacro %}
 
 {% macro default__fs_array_head(a, n) -%}
@@ -133,7 +133,7 @@ array_slice({{ a }}, 0, {{ n }})
 {# --------------------------------------------------------------- array_elem #}
 {#- 1-BASED. Snowflake is natively 0-based, so it subtracts one. -#}
 {% macro fs_array_elem(a, i) -%}
-  {{ return(adapter.dispatch('fs_array_elem', 'feature_mart')(a, i)) }}
+  {{ return(adapter.dispatch('fs_array_elem', 'featurefold')(a, i)) }}
 {%- endmacro %}
 
 {% macro default__fs_array_elem(a, i) -%}

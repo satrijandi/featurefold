@@ -12,10 +12,10 @@
 # evaluator's tests are raised from warn to error below, and the few deliberate
 # departures are listed, with their reasons, in seeds/.
 # =============================================================================
-name: "feature_mart_evaluator"
+name: "featurefold_evaluator"
 version: "0.1.0"
 config-version: 2
-profile: "feature_mart"
+profile: "featurefold"
 
 seed-paths: ["seeds"]
 
@@ -28,7 +28,7 @@ vars:
   primary_key_test_macros:
     - ["dbt.test_unique", "dbt.test_not_null"]
     - ["dbt_utils.test_unique_combination_of_columns"]
-    - ["feature_mart.test_fs_unique_combination"]
+    - ["featurefold.test_fs_unique_combination"]
 
 seeds:
   dbt_project_evaluator:

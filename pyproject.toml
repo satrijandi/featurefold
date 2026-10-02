@@ -1,5 +1,5 @@
 [project]
-name = "feature-mart"
+name = "featurefold"
 version = "0.1.0"
 description = "Config-driven feature store compiler: YAML feature specs into a dbt project"
 requires-python = ">=3.11,<3.12"
@@ -23,7 +23,7 @@ dev = [
 ]
 
 [project.scripts]
-featuremart = "generator.cli:cli"
+featurefold = "generator.cli:cli"
 
 [build-system]
 requires = ["hatchling"]

@@ -28,7 +28,7 @@
 # FS_S3_PORT / FS_AIRFLOW_PORT / FS_JUPYTER_PORT.
 # =============================================================================
 
-name: feature-mart
+name: featurefold
 
 x-airflow-common: &airflow-common
   build:
@@ -44,15 +44,15 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:?set in infra/local.env}
     AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_WEBSERVER_SECRET_KEY:?set in infra/local.env}
     AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
-    AIRFLOW__CORE__DAGS_FOLDER: /opt/feature-mart/showcase/orchestration/dags
+    AIRFLOW__CORE__DAGS_FOLDER: /opt/featurefold/showcase/orchestration/dags
     # Feature-store wiring. FS_PROJECT_ROOT is the compiler's output -- the
     # generated dbt project and registry; FS_SHOWCASE_ROOT is the runtime that
     # executes it. A production deployment changes the second, not the first.
-    FS_PROJECT_ROOT: /opt/feature-mart
-    FS_SHOWCASE_ROOT: /opt/feature-mart/showcase
+    FS_PROJECT_ROOT: /opt/featurefold
+    FS_SHOWCASE_ROOT: /opt/featurefold/showcase
     FS_BRONZE_SCHEMA: bronze_events
     DBT_TARGET: seaweed
-    DBT_DUCKDB_PATH: /opt/feature-mart/showcase/warehouse.duckdb
+    DBT_DUCKDB_PATH: /opt/featurefold/showcase/warehouse.duckdb
     # The DAG reads object-store credentials from this Connection, never from
     # its own code. Here it is built from infra/local.env; a deployment backs
     # it with a secrets manager instead.
@@ -61,7 +61,7 @@ x-airflow-common: &airflow-common
        "login": "${S3_ACCESS_KEY:?set in infra/local.env}",
        "password": "${S3_SECRET_KEY:?set in infra/local.env}"}
   volumes:
-    - ../..:/opt/feature-mart
+    - ../..:/opt/featurefold
   depends_on:
     postgres:
       condition: service_healthy
@@ -197,12 +197,12 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:?set in infra/local.env}
       S3_SECRET_KEY: ${S3_SECRET_KEY:?set in infra/local.env}
     volumes:
-      - ../..:/opt/feature-mart
-    working_dir: /opt/feature-mart/showcase
+      - ../..:/opt/featurefold
+    working_dir: /opt/featurefold/showcase
     command: >
       jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root
       --IdentityProvider.token='' --ServerApp.password=''
-      --ServerApp.root_dir=/opt/feature-mart/showcase
+      --ServerApp.root_dir=/opt/featurefold/showcase
 
 volumes:
   seaweed-data:

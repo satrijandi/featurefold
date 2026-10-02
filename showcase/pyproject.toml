@@ -1,5 +1,5 @@
 [project]
-name = "feature-mart-showcase"
+name = "featurefold-showcase"
 version = "0.1.0"
 description = "End-to-end showcase: runs the generated dbt project on a rehearsal stack"
 requires-python = ">=3.11,<3.12"
@@ -9,10 +9,10 @@ requires-python = ">=3.11,<3.12"
 # dbt runtime, a warehouse, an object store client and a notebook stack, and
 # they live here so that installing the compiler never pulls them in.
 #
-# `feature-mart` is the compiler itself, installed from the repository root:
+# `featurefold` is the compiler itself, installed from the repository root:
 #   uv pip install -e .. -e .
 dependencies = [
-    "feature-mart",
+    "featurefold",
     "dbt-core>=1.11,<1.13",
     "dbt-duckdb>=1.11,<1.12",
     "duckdb>=1.1.3",
