@@ -11,34 +11,28 @@ sealing, no incrementality. If the incremental machinery is right, the two must
 agree exactly, for every entity.
 
 WHICH "TRUTH" IS THE RIGHT ONE. There are two defensible readings of a feature
-dated T, and they differ precisely on late-arriving events:
+dated T, and they differ precisely on what arrives or changes after T:
 
-  as-of-knowledge  only rows already ingested by T. A frozen snapshot of what
-                   was knowable that morning.
-  as-of-event      all rows whose EVENT happened on or before T, whenever they
-                   were ingested.
+  as-of-knowledge  only what was knowable when T ended. A frozen snapshot of
+                   that evening.
+  as-of-event      every event that HAPPENED on or before T, as the source now
+                   records it, whenever it was loaded, corrected or deleted.
 
-This pipeline implements as-of-event, deliberately: rewriting the last
-`late_arrival_days` of partials on every run exists to fold a late event back
-into the day it actually happened. A login on Monday is a Monday login even if
-it reached the warehouse on Wednesday, and a model trained on the other reading
-would learn the ingestion pipeline's quirks instead of customer behaviour.
+A partition implements as-of-event up to a horizon: it is rebuilt by the runs
+at T+1 .. T+late_arrival_days, each knowing more than the last, and is final
+afterwards. A login on Monday is a Monday login even if it reached the
+warehouse on Wednesday, and one corrected on Wednesday is counted as corrected.
 
-So the comparison filters on event_date, bounded by what the pipeline could
-possibly have seen.
-
-That bound is min(T + late_arrival_days, newest as-of date built), which is the
-exact contract a partition carries:
-
-  * No run has looked past the newest as-of date built, so nothing ingested
-    after that can have reached any layer.
-  * A partition for T is REVISED by the runs at T+1 .. T+late_arrival_days, as
-    late events settle into their own event_date, and is final afterwards.
-    Nothing ingested after T+late_arrival_days is ever folded into it.
+So the comparison takes events dated on or before T, in the row versions that
+were current when the horizon day ended. tools/oracle.py defines both, and why
+the horizon is min(T + late_arrival_days, newest as-of date built).
 
 A partition inside its revision window is therefore provisional by design, and
 comparing it against knowledge it has not been offered yet would be testing the
 wrong contract.
+
+CLOCK. Dates and hours are read on the spec's business clock, and a day ends at
+midnight on that clock.
 
 ENTITY SPINE. Which entities a partition is supposed to contain is also part of
 the contract, and it is set per spec:
@@ -55,16 +49,17 @@ number.
 
 from __future__ import annotations
 
-import json
 import sys
 from datetime import date, timedelta
 
 import duckdb
+from generator.registry import Registry
 
+from tools import oracle
 from tools.paths import DB, REGISTRY_DIR
 
 TARGET = sys.argv[1] if len(sys.argv) > 1 else "2026-09-03"
-LATE_ARRIVAL_DAYS = 3  # settings.late_arrival_days in the feature spec
+FEATURE = "fact_agg_features_login_history_v2"  # the spec the probes below are written against
 
 IOS = "upper(os_name) = 'IOS'"
 ANDROID = "upper(os_name) = 'ANDROID'"
@@ -106,15 +101,19 @@ PROBES: dict[str, str] = {
 }
 
 
-def spine_predicate(registry: dict) -> str:
-    """The rows the spine promises, as a HAVING clause over the brute-force groups."""
-    spine = registry["settings"]["entity_spine"]
-    if spine == "all_time":
+def spine_predicate(registry: Registry) -> str:
+    """The rows the spine promises, as a HAVING clause over the brute-force groups.
+
+    The window arithmetic is restated here rather than borrowed from the
+    compiler on purpose: an oracle that shares the code it checks would agree
+    with it on the same wrong answer.
+    """
+    if registry.entity_spine == "all_time":
         return "true"
-    widest = max((f["window_days"] for f in registry["features"] if f["window_days"]), default=0)
-    convention = registry["settings"]["window_convention"]
-    lo = widest - 1 if convention == "inclusive" else widest
-    hi = 0 if convention == "inclusive" else 1
+    widest = registry.widest_window_days
+    inclusive = registry.window_convention == "inclusive"
+    lo = widest - 1 if inclusive else widest
+    hi = 0 if inclusive else 1
     return (
         f"max(case when event_date >= date '{TARGET}' - {lo} "
         f"and event_date <= date '{TARGET}' - {hi} then 1 else 0 end) = 1"
@@ -122,32 +121,18 @@ def spine_predicate(registry: dict) -> str:
 
 
 def main() -> int:
-    registry = json.loads((REGISTRY_DIR / "fact_agg_features_login_history_v2.json").read_text())
+    registry = Registry.load(REGISTRY_DIR / f"{FEATURE}.json")
+    mart = f"marts.{registry.models.mart}"
     con = duckdb.connect(str(DB), read_only=True)
 
-    # The ingestion horizon this partition is contractually allowed to know
-    # about: it stops being revised at T + late_arrival_days, and no run has
-    # looked past the newest as-of date built.
-    frontier = con.execute(
-        "select max(target_date) from marts.fact_agg_features_login_history_v2"
-    ).fetchone()[0]
-    settled = date.fromisoformat(TARGET) + timedelta(days=LATE_ARRIVAL_DAYS)
-    horizon = min(settled, frontier)
+    # The newest knowledge this partition was ever offered. See tools.oracle.
+    horizon = oracle.horizon(con, registry, TARGET)
+    settled = date.fromisoformat(TARGET) + timedelta(days=registry.late_arrival_days)
 
     # Deliberately flat: raw source, one filter, one GROUP BY. No reuse of
     # anything the pipeline builds.
     brute = f"""
-        with src as (
-            select
-                customer_id as safe_id,
-                device_id, event_id, event_timestamp, os_name, event_status,
-                cast(event_timestamp as date) as event_date
-            from bronze_events.customer_login
-            where cast(event_timestamp as date) <= date '{TARGET}'   -- as-of-event
-              and _scd_valid_from <= date '{horizon}'                -- ingestion horizon
-              and date '{TARGET}' < _scd_valid_to
-              and customer_id is not null
-        )
+        with src as ({oracle.events_as_of(registry, TARGET, horizon)})
         select safe_id, {", ".join(f"{sql} as {name}" for name, sql in PROBES.items())}
         from src group by safe_id
         having {spine_predicate(registry)}
@@ -155,7 +140,7 @@ def main() -> int:
     cols = ", ".join(PROBES)
     actual = f"""
         select safe_id, {cols}
-        from marts.fact_agg_features_login_history_v2
+        from {mart}
         where target_date = date '{TARGET}'
     """
 
@@ -172,7 +157,7 @@ def main() -> int:
     n_brute = con.execute(f"select count(*) from ({brute})").fetchone()[0]
 
     print(f"as-of date           : {TARGET}")
-    print(f"entity spine         : {registry['settings']['entity_spine']}")
+    print(f"entity spine         : {registry.entity_spine}")
     print(
         f"ingestion horizon    : {horizon}"
         f"{'  (still inside its revision window)' if horizon < settled else '  (settled)'}"

@@ -1,7 +1,7 @@
 # ============================================================================
 # GENERATED FILE - DO NOT EDIT BY HAND
 #   feature   : fact_agg_features_login_history_v2
-#   spec hash : 6c9b3cc88a21
+#   spec hash : a7a086250bfc
 #   Edit the spec and run `make generate`.
 # ============================================================================
 version: 2
@@ -15,6 +15,11 @@ models:
     480 features per entity per day, expanded from 4 atomic fields x 3 condition categories x 4 time windows.
 
     Owner: data-platform. Generated from features/fact_agg_features_login_history_v2.yml.'
+  config:
+    access: public
+    group: data_platform
+    contract:
+      enforced: true
   data_tests:
   - fs_unique_combination:
       arguments:
@@ -23,1570 +28,2041 @@ models:
         - safe_id
   columns:
   - name: target_date
-    description: As-of date these features describe. Every value is computed from events at or before
-      this date, so joining labels on it cannot leak the future.
-    data_tests:
-    - not_null
+    description: As-of date these features describe. Every value is computed from what was knowable when
+      this date ended on the business clock (Asia/Jakarta), so joining labels on it cannot leak the future.
+    data_type: date
+    constraints:
+    - type: not_null
   - name: safe_id
     description: Entity key (safe_id).
-    data_tests:
-    - not_null
+    data_type: string
+    constraints:
+    - type: not_null
   - name: count_event_id_l7d
     description: count of event_id for all rows over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_l14d
     description: count of event_id for all rows over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_l30d
     description: count of event_id for all rows over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_all_time
     description: count of event_id for all rows over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_late_night_l7d
     description: count of event_id for login_status=default, login_os=default, behavioural_time=is_late_night
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_late_night_l14d
     description: count of event_id for login_status=default, login_os=default, behavioural_time=is_late_night
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_late_night_l30d
     description: count of event_id for login_status=default, login_os=default, behavioural_time=is_late_night
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_late_night_all_time
     description: count of event_id for login_status=default, login_os=default, behavioural_time=is_late_night
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_early_morning_l7d
     description: count of event_id for login_status=default, login_os=default, behavioural_time=is_early_morning
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_early_morning_l14d
     description: count of event_id for login_status=default, login_os=default, behavioural_time=is_early_morning
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_early_morning_l30d
     description: count of event_id for login_status=default, login_os=default, behavioural_time=is_early_morning
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_early_morning_all_time
     description: count of event_id for login_status=default, login_os=default, behavioural_time=is_early_morning
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_office_hours_l7d
     description: count of event_id for login_status=default, login_os=default, behavioural_time=is_office_hours
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_office_hours_l14d
     description: count of event_id for login_status=default, login_os=default, behavioural_time=is_office_hours
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_office_hours_l30d
     description: count of event_id for login_status=default, login_os=default, behavioural_time=is_office_hours
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_office_hours_all_time
     description: count of event_id for login_status=default, login_os=default, behavioural_time=is_office_hours
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_evening_leisure_l7d
     description: count of event_id for login_status=default, login_os=default, behavioural_time=is_evening_leisure
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_evening_leisure_l14d
     description: count of event_id for login_status=default, login_os=default, behavioural_time=is_evening_leisure
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_evening_leisure_l30d
     description: count of event_id for login_status=default, login_os=default, behavioural_time=is_evening_leisure
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_evening_leisure_all_time
     description: count of event_id for login_status=default, login_os=default, behavioural_time=is_evening_leisure
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_ios_l7d
     description: count of event_id for login_status=default, login_os=is_ios, behavioural_time=default
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_ios_l14d
     description: count of event_id for login_status=default, login_os=is_ios, behavioural_time=default
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_ios_l30d
     description: count of event_id for login_status=default, login_os=is_ios, behavioural_time=default
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_ios_all_time
     description: count of event_id for login_status=default, login_os=is_ios, behavioural_time=default
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_ios_is_late_night_l7d
     description: count of event_id for login_status=default, login_os=is_ios, behavioural_time=is_late_night
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_ios_is_late_night_l14d
     description: count of event_id for login_status=default, login_os=is_ios, behavioural_time=is_late_night
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_ios_is_late_night_l30d
     description: count of event_id for login_status=default, login_os=is_ios, behavioural_time=is_late_night
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_ios_is_late_night_all_time
     description: count of event_id for login_status=default, login_os=is_ios, behavioural_time=is_late_night
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_ios_is_early_morning_l7d
     description: count of event_id for login_status=default, login_os=is_ios, behavioural_time=is_early_morning
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_ios_is_early_morning_l14d
     description: count of event_id for login_status=default, login_os=is_ios, behavioural_time=is_early_morning
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_ios_is_early_morning_l30d
     description: count of event_id for login_status=default, login_os=is_ios, behavioural_time=is_early_morning
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_ios_is_early_morning_all_time
     description: count of event_id for login_status=default, login_os=is_ios, behavioural_time=is_early_morning
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_ios_is_office_hours_l7d
     description: count of event_id for login_status=default, login_os=is_ios, behavioural_time=is_office_hours
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_ios_is_office_hours_l14d
     description: count of event_id for login_status=default, login_os=is_ios, behavioural_time=is_office_hours
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_ios_is_office_hours_l30d
     description: count of event_id for login_status=default, login_os=is_ios, behavioural_time=is_office_hours
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_ios_is_office_hours_all_time
     description: count of event_id for login_status=default, login_os=is_ios, behavioural_time=is_office_hours
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_ios_is_evening_leisure_l7d
     description: count of event_id for login_status=default, login_os=is_ios, behavioural_time=is_evening_leisure
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_ios_is_evening_leisure_l14d
     description: count of event_id for login_status=default, login_os=is_ios, behavioural_time=is_evening_leisure
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_ios_is_evening_leisure_l30d
     description: count of event_id for login_status=default, login_os=is_ios, behavioural_time=is_evening_leisure
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_ios_is_evening_leisure_all_time
     description: count of event_id for login_status=default, login_os=is_ios, behavioural_time=is_evening_leisure
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_android_l7d
     description: count of event_id for login_status=default, login_os=is_android, behavioural_time=default
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_android_l14d
     description: count of event_id for login_status=default, login_os=is_android, behavioural_time=default
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_android_l30d
     description: count of event_id for login_status=default, login_os=is_android, behavioural_time=default
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_android_all_time
     description: count of event_id for login_status=default, login_os=is_android, behavioural_time=default
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_android_is_late_night_l7d
     description: count of event_id for login_status=default, login_os=is_android, behavioural_time=is_late_night
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_android_is_late_night_l14d
     description: count of event_id for login_status=default, login_os=is_android, behavioural_time=is_late_night
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_android_is_late_night_l30d
     description: count of event_id for login_status=default, login_os=is_android, behavioural_time=is_late_night
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_android_is_late_night_all_time
     description: count of event_id for login_status=default, login_os=is_android, behavioural_time=is_late_night
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_android_is_early_morning_l7d
     description: count of event_id for login_status=default, login_os=is_android, behavioural_time=is_early_morning
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_android_is_early_morning_l14d
     description: count of event_id for login_status=default, login_os=is_android, behavioural_time=is_early_morning
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_android_is_early_morning_l30d
     description: count of event_id for login_status=default, login_os=is_android, behavioural_time=is_early_morning
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_android_is_early_morning_all_time
     description: count of event_id for login_status=default, login_os=is_android, behavioural_time=is_early_morning
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_android_is_office_hours_l7d
     description: count of event_id for login_status=default, login_os=is_android, behavioural_time=is_office_hours
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_android_is_office_hours_l14d
     description: count of event_id for login_status=default, login_os=is_android, behavioural_time=is_office_hours
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_android_is_office_hours_l30d
     description: count of event_id for login_status=default, login_os=is_android, behavioural_time=is_office_hours
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_android_is_office_hours_all_time
     description: count of event_id for login_status=default, login_os=is_android, behavioural_time=is_office_hours
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_android_is_evening_leisure_l7d
     description: count of event_id for login_status=default, login_os=is_android, behavioural_time=is_evening_leisure
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_android_is_evening_leisure_l14d
     description: count of event_id for login_status=default, login_os=is_android, behavioural_time=is_evening_leisure
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_android_is_evening_leisure_l30d
     description: count of event_id for login_status=default, login_os=is_android, behavioural_time=is_evening_leisure
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_android_is_evening_leisure_all_time
     description: count of event_id for login_status=default, login_os=is_android, behavioural_time=is_evening_leisure
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_others_l7d
     description: count of event_id for login_status=default, login_os=is_others, behavioural_time=default
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_others_l14d
     description: count of event_id for login_status=default, login_os=is_others, behavioural_time=default
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_others_l30d
     description: count of event_id for login_status=default, login_os=is_others, behavioural_time=default
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_others_all_time
     description: count of event_id for login_status=default, login_os=is_others, behavioural_time=default
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_others_is_late_night_l7d
     description: count of event_id for login_status=default, login_os=is_others, behavioural_time=is_late_night
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_others_is_late_night_l14d
     description: count of event_id for login_status=default, login_os=is_others, behavioural_time=is_late_night
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_others_is_late_night_l30d
     description: count of event_id for login_status=default, login_os=is_others, behavioural_time=is_late_night
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_others_is_late_night_all_time
     description: count of event_id for login_status=default, login_os=is_others, behavioural_time=is_late_night
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_others_is_early_morning_l7d
     description: count of event_id for login_status=default, login_os=is_others, behavioural_time=is_early_morning
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_others_is_early_morning_l14d
     description: count of event_id for login_status=default, login_os=is_others, behavioural_time=is_early_morning
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_others_is_early_morning_l30d
     description: count of event_id for login_status=default, login_os=is_others, behavioural_time=is_early_morning
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_others_is_early_morning_all_time
     description: count of event_id for login_status=default, login_os=is_others, behavioural_time=is_early_morning
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_others_is_office_hours_l7d
     description: count of event_id for login_status=default, login_os=is_others, behavioural_time=is_office_hours
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_others_is_office_hours_l14d
     description: count of event_id for login_status=default, login_os=is_others, behavioural_time=is_office_hours
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_others_is_office_hours_l30d
     description: count of event_id for login_status=default, login_os=is_others, behavioural_time=is_office_hours
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_others_is_office_hours_all_time
     description: count of event_id for login_status=default, login_os=is_others, behavioural_time=is_office_hours
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_others_is_evening_leisure_l7d
     description: count of event_id for login_status=default, login_os=is_others, behavioural_time=is_evening_leisure
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_others_is_evening_leisure_l14d
     description: count of event_id for login_status=default, login_os=is_others, behavioural_time=is_evening_leisure
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_others_is_evening_leisure_l30d
     description: count of event_id for login_status=default, login_os=is_others, behavioural_time=is_evening_leisure
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_others_is_evening_leisure_all_time
     description: count of event_id for login_status=default, login_os=is_others, behavioural_time=is_evening_leisure
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_success_l7d
     description: count of event_id for login_status=is_login_success, login_os=default, behavioural_time=default
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_l14d
     description: count of event_id for login_status=is_login_success, login_os=default, behavioural_time=default
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_l30d
     description: count of event_id for login_status=is_login_success, login_os=default, behavioural_time=default
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_all_time
     description: count of event_id for login_status=is_login_success, login_os=default, behavioural_time=default
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_success_is_late_night_l7d
     description: count of event_id for login_status=is_login_success, login_os=default, behavioural_time=is_late_night
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_late_night_l14d
     description: count of event_id for login_status=is_login_success, login_os=default, behavioural_time=is_late_night
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_late_night_l30d
     description: count of event_id for login_status=is_login_success, login_os=default, behavioural_time=is_late_night
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_late_night_all_time
     description: count of event_id for login_status=is_login_success, login_os=default, behavioural_time=is_late_night
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_success_is_early_morning_l7d
     description: count of event_id for login_status=is_login_success, login_os=default, behavioural_time=is_early_morning
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_early_morning_l14d
     description: count of event_id for login_status=is_login_success, login_os=default, behavioural_time=is_early_morning
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_early_morning_l30d
     description: count of event_id for login_status=is_login_success, login_os=default, behavioural_time=is_early_morning
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_early_morning_all_time
     description: count of event_id for login_status=is_login_success, login_os=default, behavioural_time=is_early_morning
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_success_is_office_hours_l7d
     description: count of event_id for login_status=is_login_success, login_os=default, behavioural_time=is_office_hours
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_office_hours_l14d
     description: count of event_id for login_status=is_login_success, login_os=default, behavioural_time=is_office_hours
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_office_hours_l30d
     description: count of event_id for login_status=is_login_success, login_os=default, behavioural_time=is_office_hours
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_office_hours_all_time
     description: count of event_id for login_status=is_login_success, login_os=default, behavioural_time=is_office_hours
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_success_is_evening_leisure_l7d
     description: count of event_id for login_status=is_login_success, login_os=default, behavioural_time=is_evening_leisure
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_evening_leisure_l14d
     description: count of event_id for login_status=is_login_success, login_os=default, behavioural_time=is_evening_leisure
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_evening_leisure_l30d
     description: count of event_id for login_status=is_login_success, login_os=default, behavioural_time=is_evening_leisure
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_evening_leisure_all_time
     description: count of event_id for login_status=is_login_success, login_os=default, behavioural_time=is_evening_leisure
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_success_is_ios_l7d
     description: count of event_id for login_status=is_login_success, login_os=is_ios, behavioural_time=default
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_ios_l14d
     description: count of event_id for login_status=is_login_success, login_os=is_ios, behavioural_time=default
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_ios_l30d
     description: count of event_id for login_status=is_login_success, login_os=is_ios, behavioural_time=default
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_ios_all_time
     description: count of event_id for login_status=is_login_success, login_os=is_ios, behavioural_time=default
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_success_is_ios_is_late_night_l7d
     description: count of event_id for login_status=is_login_success, login_os=is_ios, behavioural_time=is_late_night
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_ios_is_late_night_l14d
     description: count of event_id for login_status=is_login_success, login_os=is_ios, behavioural_time=is_late_night
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_ios_is_late_night_l30d
     description: count of event_id for login_status=is_login_success, login_os=is_ios, behavioural_time=is_late_night
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_ios_is_late_night_all_time
     description: count of event_id for login_status=is_login_success, login_os=is_ios, behavioural_time=is_late_night
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_success_is_ios_is_early_morning_l7d
     description: count of event_id for login_status=is_login_success, login_os=is_ios, behavioural_time=is_early_morning
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_ios_is_early_morning_l14d
     description: count of event_id for login_status=is_login_success, login_os=is_ios, behavioural_time=is_early_morning
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_ios_is_early_morning_l30d
     description: count of event_id for login_status=is_login_success, login_os=is_ios, behavioural_time=is_early_morning
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_ios_is_early_morning_all_time
     description: count of event_id for login_status=is_login_success, login_os=is_ios, behavioural_time=is_early_morning
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_success_is_ios_is_office_hours_l7d
     description: count of event_id for login_status=is_login_success, login_os=is_ios, behavioural_time=is_office_hours
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_ios_is_office_hours_l14d
     description: count of event_id for login_status=is_login_success, login_os=is_ios, behavioural_time=is_office_hours
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_ios_is_office_hours_l30d
     description: count of event_id for login_status=is_login_success, login_os=is_ios, behavioural_time=is_office_hours
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_ios_is_office_hours_all_time
     description: count of event_id for login_status=is_login_success, login_os=is_ios, behavioural_time=is_office_hours
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_success_is_ios_is_evening_leisure_l7d
     description: count of event_id for login_status=is_login_success, login_os=is_ios, behavioural_time=is_evening_leisure
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_ios_is_evening_leisure_l14d
     description: count of event_id for login_status=is_login_success, login_os=is_ios, behavioural_time=is_evening_leisure
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_ios_is_evening_leisure_l30d
     description: count of event_id for login_status=is_login_success, login_os=is_ios, behavioural_time=is_evening_leisure
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_ios_is_evening_leisure_all_time
     description: count of event_id for login_status=is_login_success, login_os=is_ios, behavioural_time=is_evening_leisure
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_success_is_android_l7d
     description: count of event_id for login_status=is_login_success, login_os=is_android, behavioural_time=default
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_android_l14d
     description: count of event_id for login_status=is_login_success, login_os=is_android, behavioural_time=default
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_android_l30d
     description: count of event_id for login_status=is_login_success, login_os=is_android, behavioural_time=default
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_android_all_time
     description: count of event_id for login_status=is_login_success, login_os=is_android, behavioural_time=default
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_success_is_android_is_late_night_l7d
     description: count of event_id for login_status=is_login_success, login_os=is_android, behavioural_time=is_late_night
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_android_is_late_night_l14d
     description: count of event_id for login_status=is_login_success, login_os=is_android, behavioural_time=is_late_night
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_android_is_late_night_l30d
     description: count of event_id for login_status=is_login_success, login_os=is_android, behavioural_time=is_late_night
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_android_is_late_night_all_time
     description: count of event_id for login_status=is_login_success, login_os=is_android, behavioural_time=is_late_night
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_success_is_android_is_early_morning_l7d
     description: count of event_id for login_status=is_login_success, login_os=is_android, behavioural_time=is_early_morning
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_android_is_early_morning_l14d
     description: count of event_id for login_status=is_login_success, login_os=is_android, behavioural_time=is_early_morning
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_android_is_early_morning_l30d
     description: count of event_id for login_status=is_login_success, login_os=is_android, behavioural_time=is_early_morning
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_android_is_early_morning_all_time
     description: count of event_id for login_status=is_login_success, login_os=is_android, behavioural_time=is_early_morning
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_success_is_android_is_office_hours_l7d
     description: count of event_id for login_status=is_login_success, login_os=is_android, behavioural_time=is_office_hours
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_android_is_office_hours_l14d
     description: count of event_id for login_status=is_login_success, login_os=is_android, behavioural_time=is_office_hours
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_android_is_office_hours_l30d
     description: count of event_id for login_status=is_login_success, login_os=is_android, behavioural_time=is_office_hours
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_android_is_office_hours_all_time
     description: count of event_id for login_status=is_login_success, login_os=is_android, behavioural_time=is_office_hours
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_success_is_android_is_evening_leisure_l7d
     description: count of event_id for login_status=is_login_success, login_os=is_android, behavioural_time=is_evening_leisure
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_android_is_evening_leisure_l14d
     description: count of event_id for login_status=is_login_success, login_os=is_android, behavioural_time=is_evening_leisure
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_android_is_evening_leisure_l30d
     description: count of event_id for login_status=is_login_success, login_os=is_android, behavioural_time=is_evening_leisure
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_android_is_evening_leisure_all_time
     description: count of event_id for login_status=is_login_success, login_os=is_android, behavioural_time=is_evening_leisure
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_success_is_others_l7d
     description: count of event_id for login_status=is_login_success, login_os=is_others, behavioural_time=default
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_others_l14d
     description: count of event_id for login_status=is_login_success, login_os=is_others, behavioural_time=default
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_others_l30d
     description: count of event_id for login_status=is_login_success, login_os=is_others, behavioural_time=default
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_others_all_time
     description: count of event_id for login_status=is_login_success, login_os=is_others, behavioural_time=default
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_success_is_others_is_late_night_l7d
     description: count of event_id for login_status=is_login_success, login_os=is_others, behavioural_time=is_late_night
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_others_is_late_night_l14d
     description: count of event_id for login_status=is_login_success, login_os=is_others, behavioural_time=is_late_night
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_others_is_late_night_l30d
     description: count of event_id for login_status=is_login_success, login_os=is_others, behavioural_time=is_late_night
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_others_is_late_night_all_time
     description: count of event_id for login_status=is_login_success, login_os=is_others, behavioural_time=is_late_night
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_success_is_others_is_early_morning_l7d
     description: count of event_id for login_status=is_login_success, login_os=is_others, behavioural_time=is_early_morning
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_others_is_early_morning_l14d
     description: count of event_id for login_status=is_login_success, login_os=is_others, behavioural_time=is_early_morning
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_others_is_early_morning_l30d
     description: count of event_id for login_status=is_login_success, login_os=is_others, behavioural_time=is_early_morning
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_others_is_early_morning_all_time
     description: count of event_id for login_status=is_login_success, login_os=is_others, behavioural_time=is_early_morning
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_success_is_others_is_office_hours_l7d
     description: count of event_id for login_status=is_login_success, login_os=is_others, behavioural_time=is_office_hours
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_others_is_office_hours_l14d
     description: count of event_id for login_status=is_login_success, login_os=is_others, behavioural_time=is_office_hours
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_others_is_office_hours_l30d
     description: count of event_id for login_status=is_login_success, login_os=is_others, behavioural_time=is_office_hours
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_others_is_office_hours_all_time
     description: count of event_id for login_status=is_login_success, login_os=is_others, behavioural_time=is_office_hours
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_success_is_others_is_evening_leisure_l7d
     description: count of event_id for login_status=is_login_success, login_os=is_others, behavioural_time=is_evening_leisure
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_others_is_evening_leisure_l14d
     description: count of event_id for login_status=is_login_success, login_os=is_others, behavioural_time=is_evening_leisure
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_others_is_evening_leisure_l30d
     description: count of event_id for login_status=is_login_success, login_os=is_others, behavioural_time=is_evening_leisure
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_success_is_others_is_evening_leisure_all_time
     description: count of event_id for login_status=is_login_success, login_os=is_others, behavioural_time=is_evening_leisure
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_failed_l7d
     description: count of event_id for login_status=is_login_failed, login_os=default, behavioural_time=default
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_l14d
     description: count of event_id for login_status=is_login_failed, login_os=default, behavioural_time=default
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_l30d
     description: count of event_id for login_status=is_login_failed, login_os=default, behavioural_time=default
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_all_time
     description: count of event_id for login_status=is_login_failed, login_os=default, behavioural_time=default
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_late_night_l7d
     description: count of event_id for login_status=is_login_failed, login_os=default, behavioural_time=is_late_night
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_late_night_l14d
     description: count of event_id for login_status=is_login_failed, login_os=default, behavioural_time=is_late_night
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_late_night_l30d
     description: count of event_id for login_status=is_login_failed, login_os=default, behavioural_time=is_late_night
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_late_night_all_time
     description: count of event_id for login_status=is_login_failed, login_os=default, behavioural_time=is_late_night
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_early_morning_l7d
     description: count of event_id for login_status=is_login_failed, login_os=default, behavioural_time=is_early_morning
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_early_morning_l14d
     description: count of event_id for login_status=is_login_failed, login_os=default, behavioural_time=is_early_morning
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_early_morning_l30d
     description: count of event_id for login_status=is_login_failed, login_os=default, behavioural_time=is_early_morning
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_early_morning_all_time
     description: count of event_id for login_status=is_login_failed, login_os=default, behavioural_time=is_early_morning
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_office_hours_l7d
     description: count of event_id for login_status=is_login_failed, login_os=default, behavioural_time=is_office_hours
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_office_hours_l14d
     description: count of event_id for login_status=is_login_failed, login_os=default, behavioural_time=is_office_hours
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_office_hours_l30d
     description: count of event_id for login_status=is_login_failed, login_os=default, behavioural_time=is_office_hours
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_office_hours_all_time
     description: count of event_id for login_status=is_login_failed, login_os=default, behavioural_time=is_office_hours
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_evening_leisure_l7d
     description: count of event_id for login_status=is_login_failed, login_os=default, behavioural_time=is_evening_leisure
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_evening_leisure_l14d
     description: count of event_id for login_status=is_login_failed, login_os=default, behavioural_time=is_evening_leisure
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_evening_leisure_l30d
     description: count of event_id for login_status=is_login_failed, login_os=default, behavioural_time=is_evening_leisure
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_evening_leisure_all_time
     description: count of event_id for login_status=is_login_failed, login_os=default, behavioural_time=is_evening_leisure
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_ios_l7d
     description: count of event_id for login_status=is_login_failed, login_os=is_ios, behavioural_time=default
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_ios_l14d
     description: count of event_id for login_status=is_login_failed, login_os=is_ios, behavioural_time=default
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_ios_l30d
     description: count of event_id for login_status=is_login_failed, login_os=is_ios, behavioural_time=default
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_ios_all_time
     description: count of event_id for login_status=is_login_failed, login_os=is_ios, behavioural_time=default
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_ios_is_late_night_l7d
     description: count of event_id for login_status=is_login_failed, login_os=is_ios, behavioural_time=is_late_night
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_ios_is_late_night_l14d
     description: count of event_id for login_status=is_login_failed, login_os=is_ios, behavioural_time=is_late_night
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_ios_is_late_night_l30d
     description: count of event_id for login_status=is_login_failed, login_os=is_ios, behavioural_time=is_late_night
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_ios_is_late_night_all_time
     description: count of event_id for login_status=is_login_failed, login_os=is_ios, behavioural_time=is_late_night
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_ios_is_early_morning_l7d
     description: count of event_id for login_status=is_login_failed, login_os=is_ios, behavioural_time=is_early_morning
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_ios_is_early_morning_l14d
     description: count of event_id for login_status=is_login_failed, login_os=is_ios, behavioural_time=is_early_morning
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_ios_is_early_morning_l30d
     description: count of event_id for login_status=is_login_failed, login_os=is_ios, behavioural_time=is_early_morning
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_ios_is_early_morning_all_time
     description: count of event_id for login_status=is_login_failed, login_os=is_ios, behavioural_time=is_early_morning
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_ios_is_office_hours_l7d
     description: count of event_id for login_status=is_login_failed, login_os=is_ios, behavioural_time=is_office_hours
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_ios_is_office_hours_l14d
     description: count of event_id for login_status=is_login_failed, login_os=is_ios, behavioural_time=is_office_hours
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_ios_is_office_hours_l30d
     description: count of event_id for login_status=is_login_failed, login_os=is_ios, behavioural_time=is_office_hours
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_ios_is_office_hours_all_time
     description: count of event_id for login_status=is_login_failed, login_os=is_ios, behavioural_time=is_office_hours
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_ios_is_evening_leisure_l7d
     description: count of event_id for login_status=is_login_failed, login_os=is_ios, behavioural_time=is_evening_leisure
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_ios_is_evening_leisure_l14d
     description: count of event_id for login_status=is_login_failed, login_os=is_ios, behavioural_time=is_evening_leisure
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_ios_is_evening_leisure_l30d
     description: count of event_id for login_status=is_login_failed, login_os=is_ios, behavioural_time=is_evening_leisure
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_ios_is_evening_leisure_all_time
     description: count of event_id for login_status=is_login_failed, login_os=is_ios, behavioural_time=is_evening_leisure
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_android_l7d
     description: count of event_id for login_status=is_login_failed, login_os=is_android, behavioural_time=default
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_android_l14d
     description: count of event_id for login_status=is_login_failed, login_os=is_android, behavioural_time=default
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_android_l30d
     description: count of event_id for login_status=is_login_failed, login_os=is_android, behavioural_time=default
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_android_all_time
     description: count of event_id for login_status=is_login_failed, login_os=is_android, behavioural_time=default
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_android_is_late_night_l7d
     description: count of event_id for login_status=is_login_failed, login_os=is_android, behavioural_time=is_late_night
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_android_is_late_night_l14d
     description: count of event_id for login_status=is_login_failed, login_os=is_android, behavioural_time=is_late_night
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_android_is_late_night_l30d
     description: count of event_id for login_status=is_login_failed, login_os=is_android, behavioural_time=is_late_night
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_android_is_late_night_all_time
     description: count of event_id for login_status=is_login_failed, login_os=is_android, behavioural_time=is_late_night
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_android_is_early_morning_l7d
     description: count of event_id for login_status=is_login_failed, login_os=is_android, behavioural_time=is_early_morning
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_android_is_early_morning_l14d
     description: count of event_id for login_status=is_login_failed, login_os=is_android, behavioural_time=is_early_morning
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_android_is_early_morning_l30d
     description: count of event_id for login_status=is_login_failed, login_os=is_android, behavioural_time=is_early_morning
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_android_is_early_morning_all_time
     description: count of event_id for login_status=is_login_failed, login_os=is_android, behavioural_time=is_early_morning
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_android_is_office_hours_l7d
     description: count of event_id for login_status=is_login_failed, login_os=is_android, behavioural_time=is_office_hours
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_android_is_office_hours_l14d
     description: count of event_id for login_status=is_login_failed, login_os=is_android, behavioural_time=is_office_hours
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_android_is_office_hours_l30d
     description: count of event_id for login_status=is_login_failed, login_os=is_android, behavioural_time=is_office_hours
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_android_is_office_hours_all_time
     description: count of event_id for login_status=is_login_failed, login_os=is_android, behavioural_time=is_office_hours
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_android_is_evening_leisure_l7d
     description: count of event_id for login_status=is_login_failed, login_os=is_android, behavioural_time=is_evening_leisure
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_android_is_evening_leisure_l14d
     description: count of event_id for login_status=is_login_failed, login_os=is_android, behavioural_time=is_evening_leisure
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_android_is_evening_leisure_l30d
     description: count of event_id for login_status=is_login_failed, login_os=is_android, behavioural_time=is_evening_leisure
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_android_is_evening_leisure_all_time
     description: count of event_id for login_status=is_login_failed, login_os=is_android, behavioural_time=is_evening_leisure
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_others_l7d
     description: count of event_id for login_status=is_login_failed, login_os=is_others, behavioural_time=default
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_others_l14d
     description: count of event_id for login_status=is_login_failed, login_os=is_others, behavioural_time=default
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_others_l30d
     description: count of event_id for login_status=is_login_failed, login_os=is_others, behavioural_time=default
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_others_all_time
     description: count of event_id for login_status=is_login_failed, login_os=is_others, behavioural_time=default
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_others_is_late_night_l7d
     description: count of event_id for login_status=is_login_failed, login_os=is_others, behavioural_time=is_late_night
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_others_is_late_night_l14d
     description: count of event_id for login_status=is_login_failed, login_os=is_others, behavioural_time=is_late_night
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_others_is_late_night_l30d
     description: count of event_id for login_status=is_login_failed, login_os=is_others, behavioural_time=is_late_night
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_others_is_late_night_all_time
     description: count of event_id for login_status=is_login_failed, login_os=is_others, behavioural_time=is_late_night
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_others_is_early_morning_l7d
     description: count of event_id for login_status=is_login_failed, login_os=is_others, behavioural_time=is_early_morning
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_others_is_early_morning_l14d
     description: count of event_id for login_status=is_login_failed, login_os=is_others, behavioural_time=is_early_morning
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_others_is_early_morning_l30d
     description: count of event_id for login_status=is_login_failed, login_os=is_others, behavioural_time=is_early_morning
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_others_is_early_morning_all_time
     description: count of event_id for login_status=is_login_failed, login_os=is_others, behavioural_time=is_early_morning
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_others_is_office_hours_l7d
     description: count of event_id for login_status=is_login_failed, login_os=is_others, behavioural_time=is_office_hours
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_others_is_office_hours_l14d
     description: count of event_id for login_status=is_login_failed, login_os=is_others, behavioural_time=is_office_hours
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_others_is_office_hours_l30d
     description: count of event_id for login_status=is_login_failed, login_os=is_others, behavioural_time=is_office_hours
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_others_is_office_hours_all_time
     description: count of event_id for login_status=is_login_failed, login_os=is_others, behavioural_time=is_office_hours
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_others_is_evening_leisure_l7d
     description: count of event_id for login_status=is_login_failed, login_os=is_others, behavioural_time=is_evening_leisure
       over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_others_is_evening_leisure_l14d
     description: count of event_id for login_status=is_login_failed, login_os=is_others, behavioural_time=is_evening_leisure
       over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_others_is_evening_leisure_l30d
     description: count of event_id for login_status=is_login_failed, login_os=is_others, behavioural_time=is_evening_leisure
       over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_event_id_is_login_failed_is_others_is_evening_leisure_all_time
     description: count of event_id for login_status=is_login_failed, login_os=is_others, behavioural_time=is_evening_leisure
       over all history up to and including the as-of date
+    data_type: bigint
   - name: count_distinct_device_id_l7d
     description: count_distinct of device_id for all rows over the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_l14d
     description: count_distinct of device_id for all rows over the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_l30d
     description: count_distinct of device_id for all rows over the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_all_time
     description: count_distinct of device_id for all rows over all history up to and including the as-of
       date
+    data_type: bigint
   - name: count_distinct_device_id_is_ios_l7d
     description: count_distinct of device_id for login_status=default, login_os=is_ios over the 7 days
       ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_ios_l14d
     description: count_distinct of device_id for login_status=default, login_os=is_ios over the 14 days
       ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_ios_l30d
     description: count_distinct of device_id for login_status=default, login_os=is_ios over the 30 days
       ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_ios_all_time
     description: count_distinct of device_id for login_status=default, login_os=is_ios over all history
       up to and including the as-of date
+    data_type: bigint
   - name: count_distinct_device_id_is_android_l7d
     description: count_distinct of device_id for login_status=default, login_os=is_android over the 7
       days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_android_l14d
     description: count_distinct of device_id for login_status=default, login_os=is_android over the 14
       days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_android_l30d
     description: count_distinct of device_id for login_status=default, login_os=is_android over the 30
       days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_android_all_time
     description: count_distinct of device_id for login_status=default, login_os=is_android over all history
       up to and including the as-of date
+    data_type: bigint
   - name: count_distinct_device_id_is_others_l7d
     description: count_distinct of device_id for login_status=default, login_os=is_others over the 7 days
       ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_others_l14d
     description: count_distinct of device_id for login_status=default, login_os=is_others over the 14
       days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_others_l30d
     description: count_distinct of device_id for login_status=default, login_os=is_others over the 30
       days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_others_all_time
     description: count_distinct of device_id for login_status=default, login_os=is_others over all history
       up to and including the as-of date
+    data_type: bigint
   - name: count_distinct_device_id_is_login_success_l7d
     description: count_distinct of device_id for login_status=is_login_success, login_os=default over
       the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_success_l14d
     description: count_distinct of device_id for login_status=is_login_success, login_os=default over
       the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_success_l30d
     description: count_distinct of device_id for login_status=is_login_success, login_os=default over
       the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_success_all_time
     description: count_distinct of device_id for login_status=is_login_success, login_os=default over
       all history up to and including the as-of date
+    data_type: bigint
   - name: count_distinct_device_id_is_login_success_is_ios_l7d
     description: count_distinct of device_id for login_status=is_login_success, login_os=is_ios over the
       7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_success_is_ios_l14d
     description: count_distinct of device_id for login_status=is_login_success, login_os=is_ios over the
       14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_success_is_ios_l30d
     description: count_distinct of device_id for login_status=is_login_success, login_os=is_ios over the
       30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_success_is_ios_all_time
     description: count_distinct of device_id for login_status=is_login_success, login_os=is_ios over all
       history up to and including the as-of date
+    data_type: bigint
   - name: count_distinct_device_id_is_login_success_is_android_l7d
     description: count_distinct of device_id for login_status=is_login_success, login_os=is_android over
       the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_success_is_android_l14d
     description: count_distinct of device_id for login_status=is_login_success, login_os=is_android over
       the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_success_is_android_l30d
     description: count_distinct of device_id for login_status=is_login_success, login_os=is_android over
       the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_success_is_android_all_time
     description: count_distinct of device_id for login_status=is_login_success, login_os=is_android over
       all history up to and including the as-of date
+    data_type: bigint
   - name: count_distinct_device_id_is_login_success_is_others_l7d
     description: count_distinct of device_id for login_status=is_login_success, login_os=is_others over
       the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_success_is_others_l14d
     description: count_distinct of device_id for login_status=is_login_success, login_os=is_others over
       the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_success_is_others_l30d
     description: count_distinct of device_id for login_status=is_login_success, login_os=is_others over
       the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_success_is_others_all_time
     description: count_distinct of device_id for login_status=is_login_success, login_os=is_others over
       all history up to and including the as-of date
+    data_type: bigint
   - name: count_distinct_device_id_is_login_failed_l7d
     description: count_distinct of device_id for login_status=is_login_failed, login_os=default over the
       7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_failed_l14d
     description: count_distinct of device_id for login_status=is_login_failed, login_os=default over the
       14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_failed_l30d
     description: count_distinct of device_id for login_status=is_login_failed, login_os=default over the
       30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_failed_all_time
     description: count_distinct of device_id for login_status=is_login_failed, login_os=default over all
       history up to and including the as-of date
+    data_type: bigint
   - name: count_distinct_device_id_is_login_failed_is_ios_l7d
     description: count_distinct of device_id for login_status=is_login_failed, login_os=is_ios over the
       7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_failed_is_ios_l14d
     description: count_distinct of device_id for login_status=is_login_failed, login_os=is_ios over the
       14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_failed_is_ios_l30d
     description: count_distinct of device_id for login_status=is_login_failed, login_os=is_ios over the
       30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_failed_is_ios_all_time
     description: count_distinct of device_id for login_status=is_login_failed, login_os=is_ios over all
       history up to and including the as-of date
+    data_type: bigint
   - name: count_distinct_device_id_is_login_failed_is_android_l7d
     description: count_distinct of device_id for login_status=is_login_failed, login_os=is_android over
       the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_failed_is_android_l14d
     description: count_distinct of device_id for login_status=is_login_failed, login_os=is_android over
       the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_failed_is_android_l30d
     description: count_distinct of device_id for login_status=is_login_failed, login_os=is_android over
       the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_failed_is_android_all_time
     description: count_distinct of device_id for login_status=is_login_failed, login_os=is_android over
       all history up to and including the as-of date
+    data_type: bigint
   - name: count_distinct_device_id_is_login_failed_is_others_l7d
     description: count_distinct of device_id for login_status=is_login_failed, login_os=is_others over
       the 7 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_failed_is_others_l14d
     description: count_distinct of device_id for login_status=is_login_failed, login_os=is_others over
       the 14 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_failed_is_others_l30d
     description: count_distinct of device_id for login_status=is_login_failed, login_os=is_others over
       the 30 days ending on the as-of date (inclusive)
+    data_type: bigint
   - name: count_distinct_device_id_is_login_failed_is_others_all_time
     description: count_distinct of device_id for login_status=is_login_failed, login_os=is_others over
       all history up to and including the as-of date
+    data_type: bigint
   - name: min_event_timestamp_l7d
     description: min of event_timestamp for all rows over the 7 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_l14d
     description: min of event_timestamp for all rows over the 14 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_l30d
     description: min of event_timestamp for all rows over the 30 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_all_time
     description: min of event_timestamp for all rows over all history up to and including the as-of date
+    data_type: timestamp
   - name: min_event_timestamp_is_ios_l7d
     description: min of event_timestamp for login_status=default, login_os=is_ios over the 7 days ending
       on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_ios_l14d
     description: min of event_timestamp for login_status=default, login_os=is_ios over the 14 days ending
       on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_ios_l30d
     description: min of event_timestamp for login_status=default, login_os=is_ios over the 30 days ending
       on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_ios_all_time
     description: min of event_timestamp for login_status=default, login_os=is_ios over all history up
       to and including the as-of date
+    data_type: timestamp
   - name: min_event_timestamp_is_android_l7d
     description: min of event_timestamp for login_status=default, login_os=is_android over the 7 days
       ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_android_l14d
     description: min of event_timestamp for login_status=default, login_os=is_android over the 14 days
       ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_android_l30d
     description: min of event_timestamp for login_status=default, login_os=is_android over the 30 days
       ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_android_all_time
     description: min of event_timestamp for login_status=default, login_os=is_android over all history
       up to and including the as-of date
+    data_type: timestamp
   - name: min_event_timestamp_is_others_l7d
     description: min of event_timestamp for login_status=default, login_os=is_others over the 7 days ending
       on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_others_l14d
     description: min of event_timestamp for login_status=default, login_os=is_others over the 14 days
       ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_others_l30d
     description: min of event_timestamp for login_status=default, login_os=is_others over the 30 days
       ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_others_all_time
     description: min of event_timestamp for login_status=default, login_os=is_others over all history
       up to and including the as-of date
+    data_type: timestamp
   - name: min_event_timestamp_is_login_success_l7d
     description: min of event_timestamp for login_status=is_login_success, login_os=default over the 7
       days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_success_l14d
     description: min of event_timestamp for login_status=is_login_success, login_os=default over the 14
       days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_success_l30d
     description: min of event_timestamp for login_status=is_login_success, login_os=default over the 30
       days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_success_all_time
     description: min of event_timestamp for login_status=is_login_success, login_os=default over all history
       up to and including the as-of date
+    data_type: timestamp
   - name: min_event_timestamp_is_login_success_is_ios_l7d
     description: min of event_timestamp for login_status=is_login_success, login_os=is_ios over the 7
       days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_success_is_ios_l14d
     description: min of event_timestamp for login_status=is_login_success, login_os=is_ios over the 14
       days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_success_is_ios_l30d
     description: min of event_timestamp for login_status=is_login_success, login_os=is_ios over the 30
       days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_success_is_ios_all_time
     description: min of event_timestamp for login_status=is_login_success, login_os=is_ios over all history
       up to and including the as-of date
+    data_type: timestamp
   - name: min_event_timestamp_is_login_success_is_android_l7d
     description: min of event_timestamp for login_status=is_login_success, login_os=is_android over the
       7 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_success_is_android_l14d
     description: min of event_timestamp for login_status=is_login_success, login_os=is_android over the
       14 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_success_is_android_l30d
     description: min of event_timestamp for login_status=is_login_success, login_os=is_android over the
       30 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_success_is_android_all_time
     description: min of event_timestamp for login_status=is_login_success, login_os=is_android over all
       history up to and including the as-of date
+    data_type: timestamp
   - name: min_event_timestamp_is_login_success_is_others_l7d
     description: min of event_timestamp for login_status=is_login_success, login_os=is_others over the
       7 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_success_is_others_l14d
     description: min of event_timestamp for login_status=is_login_success, login_os=is_others over the
       14 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_success_is_others_l30d
     description: min of event_timestamp for login_status=is_login_success, login_os=is_others over the
       30 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_success_is_others_all_time
     description: min of event_timestamp for login_status=is_login_success, login_os=is_others over all
       history up to and including the as-of date
+    data_type: timestamp
   - name: min_event_timestamp_is_login_failed_l7d
     description: min of event_timestamp for login_status=is_login_failed, login_os=default over the 7
       days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_failed_l14d
     description: min of event_timestamp for login_status=is_login_failed, login_os=default over the 14
       days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_failed_l30d
     description: min of event_timestamp for login_status=is_login_failed, login_os=default over the 30
       days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_failed_all_time
     description: min of event_timestamp for login_status=is_login_failed, login_os=default over all history
       up to and including the as-of date
+    data_type: timestamp
   - name: min_event_timestamp_is_login_failed_is_ios_l7d
     description: min of event_timestamp for login_status=is_login_failed, login_os=is_ios over the 7 days
       ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_failed_is_ios_l14d
     description: min of event_timestamp for login_status=is_login_failed, login_os=is_ios over the 14
       days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_failed_is_ios_l30d
     description: min of event_timestamp for login_status=is_login_failed, login_os=is_ios over the 30
       days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_failed_is_ios_all_time
     description: min of event_timestamp for login_status=is_login_failed, login_os=is_ios over all history
       up to and including the as-of date
+    data_type: timestamp
   - name: min_event_timestamp_is_login_failed_is_android_l7d
     description: min of event_timestamp for login_status=is_login_failed, login_os=is_android over the
       7 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_failed_is_android_l14d
     description: min of event_timestamp for login_status=is_login_failed, login_os=is_android over the
       14 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_failed_is_android_l30d
     description: min of event_timestamp for login_status=is_login_failed, login_os=is_android over the
       30 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_failed_is_android_all_time
     description: min of event_timestamp for login_status=is_login_failed, login_os=is_android over all
       history up to and including the as-of date
+    data_type: timestamp
   - name: min_event_timestamp_is_login_failed_is_others_l7d
     description: min of event_timestamp for login_status=is_login_failed, login_os=is_others over the
       7 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_failed_is_others_l14d
     description: min of event_timestamp for login_status=is_login_failed, login_os=is_others over the
       14 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_failed_is_others_l30d
     description: min of event_timestamp for login_status=is_login_failed, login_os=is_others over the
       30 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: min_event_timestamp_is_login_failed_is_others_all_time
     description: min of event_timestamp for login_status=is_login_failed, login_os=is_others over all
       history up to and including the as-of date
+    data_type: timestamp
   - name: max_event_timestamp_l7d
     description: max of event_timestamp for all rows over the 7 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_l14d
     description: max of event_timestamp for all rows over the 14 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_l30d
     description: max of event_timestamp for all rows over the 30 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_all_time
     description: max of event_timestamp for all rows over all history up to and including the as-of date
+    data_type: timestamp
   - name: max_event_timestamp_is_ios_l7d
     description: max of event_timestamp for login_status=default, login_os=is_ios over the 7 days ending
       on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_ios_l14d
     description: max of event_timestamp for login_status=default, login_os=is_ios over the 14 days ending
       on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_ios_l30d
     description: max of event_timestamp for login_status=default, login_os=is_ios over the 30 days ending
       on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_ios_all_time
     description: max of event_timestamp for login_status=default, login_os=is_ios over all history up
       to and including the as-of date
+    data_type: timestamp
   - name: max_event_timestamp_is_android_l7d
     description: max of event_timestamp for login_status=default, login_os=is_android over the 7 days
       ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_android_l14d
     description: max of event_timestamp for login_status=default, login_os=is_android over the 14 days
       ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_android_l30d
     description: max of event_timestamp for login_status=default, login_os=is_android over the 30 days
       ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_android_all_time
     description: max of event_timestamp for login_status=default, login_os=is_android over all history
       up to and including the as-of date
+    data_type: timestamp
   - name: max_event_timestamp_is_others_l7d
     description: max of event_timestamp for login_status=default, login_os=is_others over the 7 days ending
       on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_others_l14d
     description: max of event_timestamp for login_status=default, login_os=is_others over the 14 days
       ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_others_l30d
     description: max of event_timestamp for login_status=default, login_os=is_others over the 30 days
       ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_others_all_time
     description: max of event_timestamp for login_status=default, login_os=is_others over all history
       up to and including the as-of date
+    data_type: timestamp
   - name: max_event_timestamp_is_login_success_l7d
     description: max of event_timestamp for login_status=is_login_success, login_os=default over the 7
       days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_success_l14d
     description: max of event_timestamp for login_status=is_login_success, login_os=default over the 14
       days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_success_l30d
     description: max of event_timestamp for login_status=is_login_success, login_os=default over the 30
       days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_success_all_time
     description: max of event_timestamp for login_status=is_login_success, login_os=default over all history
       up to and including the as-of date
+    data_type: timestamp
   - name: max_event_timestamp_is_login_success_is_ios_l7d
     description: max of event_timestamp for login_status=is_login_success, login_os=is_ios over the 7
       days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_success_is_ios_l14d
     description: max of event_timestamp for login_status=is_login_success, login_os=is_ios over the 14
       days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_success_is_ios_l30d
     description: max of event_timestamp for login_status=is_login_success, login_os=is_ios over the 30
       days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_success_is_ios_all_time
     description: max of event_timestamp for login_status=is_login_success, login_os=is_ios over all history
       up to and including the as-of date
+    data_type: timestamp
   - name: max_event_timestamp_is_login_success_is_android_l7d
     description: max of event_timestamp for login_status=is_login_success, login_os=is_android over the
       7 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_success_is_android_l14d
     description: max of event_timestamp for login_status=is_login_success, login_os=is_android over the
       14 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_success_is_android_l30d
     description: max of event_timestamp for login_status=is_login_success, login_os=is_android over the
       30 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_success_is_android_all_time
     description: max of event_timestamp for login_status=is_login_success, login_os=is_android over all
       history up to and including the as-of date
+    data_type: timestamp
   - name: max_event_timestamp_is_login_success_is_others_l7d
     description: max of event_timestamp for login_status=is_login_success, login_os=is_others over the
       7 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_success_is_others_l14d
     description: max of event_timestamp for login_status=is_login_success, login_os=is_others over the
       14 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_success_is_others_l30d
     description: max of event_timestamp for login_status=is_login_success, login_os=is_others over the
       30 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_success_is_others_all_time
     description: max of event_timestamp for login_status=is_login_success, login_os=is_others over all
       history up to and including the as-of date
+    data_type: timestamp
   - name: max_event_timestamp_is_login_failed_l7d
     description: max of event_timestamp for login_status=is_login_failed, login_os=default over the 7
       days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_failed_l14d
     description: max of event_timestamp for login_status=is_login_failed, login_os=default over the 14
       days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_failed_l30d
     description: max of event_timestamp for login_status=is_login_failed, login_os=default over the 30
       days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_failed_all_time
     description: max of event_timestamp for login_status=is_login_failed, login_os=default over all history
       up to and including the as-of date
+    data_type: timestamp
   - name: max_event_timestamp_is_login_failed_is_ios_l7d
     description: max of event_timestamp for login_status=is_login_failed, login_os=is_ios over the 7 days
       ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_failed_is_ios_l14d
     description: max of event_timestamp for login_status=is_login_failed, login_os=is_ios over the 14
       days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_failed_is_ios_l30d
     description: max of event_timestamp for login_status=is_login_failed, login_os=is_ios over the 30
       days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_failed_is_ios_all_time
     description: max of event_timestamp for login_status=is_login_failed, login_os=is_ios over all history
       up to and including the as-of date
+    data_type: timestamp
   - name: max_event_timestamp_is_login_failed_is_android_l7d
     description: max of event_timestamp for login_status=is_login_failed, login_os=is_android over the
       7 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_failed_is_android_l14d
     description: max of event_timestamp for login_status=is_login_failed, login_os=is_android over the
       14 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_failed_is_android_l30d
     description: max of event_timestamp for login_status=is_login_failed, login_os=is_android over the
       30 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_failed_is_android_all_time
     description: max of event_timestamp for login_status=is_login_failed, login_os=is_android over all
       history up to and including the as-of date
+    data_type: timestamp
   - name: max_event_timestamp_is_login_failed_is_others_l7d
     description: max of event_timestamp for login_status=is_login_failed, login_os=is_others over the
       7 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_failed_is_others_l14d
     description: max of event_timestamp for login_status=is_login_failed, login_os=is_others over the
       14 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_failed_is_others_l30d
     description: max of event_timestamp for login_status=is_login_failed, login_os=is_others over the
       30 days ending on the as-of date (inclusive)
+    data_type: timestamp
   - name: max_event_timestamp_is_login_failed_is_others_all_time
     description: max of event_timestamp for login_status=is_login_failed, login_os=is_others over all
       history up to and including the as-of date
+    data_type: timestamp
   - name: min_days_since_login_l7d
     description: min of days_since_login for all rows over the 7 days ending on the as-of date (inclusive)
       (whole calendar days from max_event_timestamp_l7d to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_l14d
     description: min of days_since_login for all rows over the 14 days ending on the as-of date (inclusive)
       (whole calendar days from max_event_timestamp_l14d to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_l30d
     description: min of days_since_login for all rows over the 30 days ending on the as-of date (inclusive)
       (whole calendar days from max_event_timestamp_l30d to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_all_time
     description: min of days_since_login for all rows over all history up to and including the as-of date
       (whole calendar days from max_event_timestamp_all_time to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_ios_l7d
     description: min of days_since_login for login_status=default, login_os=is_ios over the 7 days ending
       on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_ios_l7d to the as-of
       date)
+    data_type: bigint
   - name: min_days_since_login_is_ios_l14d
     description: min of days_since_login for login_status=default, login_os=is_ios over the 14 days ending
       on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_ios_l14d to the as-of
       date)
+    data_type: bigint
   - name: min_days_since_login_is_ios_l30d
     description: min of days_since_login for login_status=default, login_os=is_ios over the 30 days ending
       on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_ios_l30d to the as-of
       date)
+    data_type: bigint
   - name: min_days_since_login_is_ios_all_time
     description: min of days_since_login for login_status=default, login_os=is_ios over all history up
       to and including the as-of date (whole calendar days from max_event_timestamp_is_ios_all_time to
       the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_android_l7d
     description: min of days_since_login for login_status=default, login_os=is_android over the 7 days
       ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_android_l7d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_android_l14d
     description: min of days_since_login for login_status=default, login_os=is_android over the 14 days
       ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_android_l14d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_android_l30d
     description: min of days_since_login for login_status=default, login_os=is_android over the 30 days
       ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_android_l30d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_android_all_time
     description: min of days_since_login for login_status=default, login_os=is_android over all history
       up to and including the as-of date (whole calendar days from max_event_timestamp_is_android_all_time
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_others_l7d
     description: min of days_since_login for login_status=default, login_os=is_others over the 7 days
       ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_others_l7d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_others_l14d
     description: min of days_since_login for login_status=default, login_os=is_others over the 14 days
       ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_others_l14d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_others_l30d
     description: min of days_since_login for login_status=default, login_os=is_others over the 30 days
       ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_others_l30d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_others_all_time
     description: min of days_since_login for login_status=default, login_os=is_others over all history
       up to and including the as-of date (whole calendar days from max_event_timestamp_is_others_all_time
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_success_l7d
     description: min of days_since_login for login_status=is_login_success, login_os=default over the
       7 days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_success_l7d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_success_l14d
     description: min of days_since_login for login_status=is_login_success, login_os=default over the
       14 days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_success_l14d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_success_l30d
     description: min of days_since_login for login_status=is_login_success, login_os=default over the
       30 days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_success_l30d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_success_all_time
     description: min of days_since_login for login_status=is_login_success, login_os=default over all
       history up to and including the as-of date (whole calendar days from max_event_timestamp_is_login_success_all_time
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_success_is_ios_l7d
     description: min of days_since_login for login_status=is_login_success, login_os=is_ios over the 7
       days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_success_is_ios_l7d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_success_is_ios_l14d
     description: min of days_since_login for login_status=is_login_success, login_os=is_ios over the 14
       days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_success_is_ios_l14d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_success_is_ios_l30d
     description: min of days_since_login for login_status=is_login_success, login_os=is_ios over the 30
       days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_success_is_ios_l30d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_success_is_ios_all_time
     description: min of days_since_login for login_status=is_login_success, login_os=is_ios over all history
       up to and including the as-of date (whole calendar days from max_event_timestamp_is_login_success_is_ios_all_time
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_success_is_android_l7d
     description: min of days_since_login for login_status=is_login_success, login_os=is_android over the
       7 days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_success_is_android_l7d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_success_is_android_l14d
     description: min of days_since_login for login_status=is_login_success, login_os=is_android over the
       14 days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_success_is_android_l14d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_success_is_android_l30d
     description: min of days_since_login for login_status=is_login_success, login_os=is_android over the
       30 days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_success_is_android_l30d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_success_is_android_all_time
     description: min of days_since_login for login_status=is_login_success, login_os=is_android over all
       history up to and including the as-of date (whole calendar days from max_event_timestamp_is_login_success_is_android_all_time
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_success_is_others_l7d
     description: min of days_since_login for login_status=is_login_success, login_os=is_others over the
       7 days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_success_is_others_l7d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_success_is_others_l14d
     description: min of days_since_login for login_status=is_login_success, login_os=is_others over the
       14 days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_success_is_others_l14d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_success_is_others_l30d
     description: min of days_since_login for login_status=is_login_success, login_os=is_others over the
       30 days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_success_is_others_l30d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_success_is_others_all_time
     description: min of days_since_login for login_status=is_login_success, login_os=is_others over all
       history up to and including the as-of date (whole calendar days from max_event_timestamp_is_login_success_is_others_all_time
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_failed_l7d
     description: min of days_since_login for login_status=is_login_failed, login_os=default over the 7
       days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_failed_l7d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_failed_l14d
     description: min of days_since_login for login_status=is_login_failed, login_os=default over the 14
       days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_failed_l14d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_failed_l30d
     description: min of days_since_login for login_status=is_login_failed, login_os=default over the 30
       days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_failed_l30d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_failed_all_time
     description: min of days_since_login for login_status=is_login_failed, login_os=default over all history
       up to and including the as-of date (whole calendar days from max_event_timestamp_is_login_failed_all_time
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_failed_is_ios_l7d
     description: min of days_since_login for login_status=is_login_failed, login_os=is_ios over the 7
       days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_failed_is_ios_l7d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_failed_is_ios_l14d
     description: min of days_since_login for login_status=is_login_failed, login_os=is_ios over the 14
       days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_failed_is_ios_l14d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_failed_is_ios_l30d
     description: min of days_since_login for login_status=is_login_failed, login_os=is_ios over the 30
       days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_failed_is_ios_l30d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_failed_is_ios_all_time
     description: min of days_since_login for login_status=is_login_failed, login_os=is_ios over all history
       up to and including the as-of date (whole calendar days from max_event_timestamp_is_login_failed_is_ios_all_time
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_failed_is_android_l7d
     description: min of days_since_login for login_status=is_login_failed, login_os=is_android over the
       7 days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_failed_is_android_l7d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_failed_is_android_l14d
     description: min of days_since_login for login_status=is_login_failed, login_os=is_android over the
       14 days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_failed_is_android_l14d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_failed_is_android_l30d
     description: min of days_since_login for login_status=is_login_failed, login_os=is_android over the
       30 days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_failed_is_android_l30d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_failed_is_android_all_time
     description: min of days_since_login for login_status=is_login_failed, login_os=is_android over all
       history up to and including the as-of date (whole calendar days from max_event_timestamp_is_login_failed_is_android_all_time
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_failed_is_others_l7d
     description: min of days_since_login for login_status=is_login_failed, login_os=is_others over the
       7 days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_failed_is_others_l7d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_failed_is_others_l14d
     description: min of days_since_login for login_status=is_login_failed, login_os=is_others over the
       14 days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_failed_is_others_l14d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_failed_is_others_l30d
     description: min of days_since_login for login_status=is_login_failed, login_os=is_others over the
       30 days ending on the as-of date (inclusive) (whole calendar days from max_event_timestamp_is_login_failed_is_others_l30d
       to the as-of date)
+    data_type: bigint
   - name: min_days_since_login_is_login_failed_is_others_all_time
     description: min of days_since_login for login_status=is_login_failed, login_os=is_others over all
       history up to and including the as-of date (whole calendar days from max_event_timestamp_is_login_failed_is_others_all_time
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_l7d
     description: max of days_since_login for all rows over the 7 days ending on the as-of date (inclusive)
       (whole calendar days from min_event_timestamp_l7d to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_l14d
     description: max of days_since_login for all rows over the 14 days ending on the as-of date (inclusive)
       (whole calendar days from min_event_timestamp_l14d to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_l30d
     description: max of days_since_login for all rows over the 30 days ending on the as-of date (inclusive)
       (whole calendar days from min_event_timestamp_l30d to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_all_time
     description: max of days_since_login for all rows over all history up to and including the as-of date
       (whole calendar days from min_event_timestamp_all_time to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_ios_l7d
     description: max of days_since_login for login_status=default, login_os=is_ios over the 7 days ending
       on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_ios_l7d to the as-of
       date)
+    data_type: bigint
   - name: max_days_since_login_is_ios_l14d
     description: max of days_since_login for login_status=default, login_os=is_ios over the 14 days ending
       on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_ios_l14d to the as-of
       date)
+    data_type: bigint
   - name: max_days_since_login_is_ios_l30d
     description: max of days_since_login for login_status=default, login_os=is_ios over the 30 days ending
       on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_ios_l30d to the as-of
       date)
+    data_type: bigint
   - name: max_days_since_login_is_ios_all_time
     description: max of days_since_login for login_status=default, login_os=is_ios over all history up
       to and including the as-of date (whole calendar days from min_event_timestamp_is_ios_all_time to
       the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_android_l7d
     description: max of days_since_login for login_status=default, login_os=is_android over the 7 days
       ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_android_l7d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_android_l14d
     description: max of days_since_login for login_status=default, login_os=is_android over the 14 days
       ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_android_l14d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_android_l30d
     description: max of days_since_login for login_status=default, login_os=is_android over the 30 days
       ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_android_l30d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_android_all_time
     description: max of days_since_login for login_status=default, login_os=is_android over all history
       up to and including the as-of date (whole calendar days from min_event_timestamp_is_android_all_time
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_others_l7d
     description: max of days_since_login for login_status=default, login_os=is_others over the 7 days
       ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_others_l7d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_others_l14d
     description: max of days_since_login for login_status=default, login_os=is_others over the 14 days
       ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_others_l14d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_others_l30d
     description: max of days_since_login for login_status=default, login_os=is_others over the 30 days
       ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_others_l30d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_others_all_time
     description: max of days_since_login for login_status=default, login_os=is_others over all history
       up to and including the as-of date (whole calendar days from min_event_timestamp_is_others_all_time
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_success_l7d
     description: max of days_since_login for login_status=is_login_success, login_os=default over the
       7 days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_success_l7d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_success_l14d
     description: max of days_since_login for login_status=is_login_success, login_os=default over the
       14 days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_success_l14d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_success_l30d
     description: max of days_since_login for login_status=is_login_success, login_os=default over the
       30 days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_success_l30d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_success_all_time
     description: max of days_since_login for login_status=is_login_success, login_os=default over all
       history up to and including the as-of date (whole calendar days from min_event_timestamp_is_login_success_all_time
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_success_is_ios_l7d
     description: max of days_since_login for login_status=is_login_success, login_os=is_ios over the 7
       days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_success_is_ios_l7d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_success_is_ios_l14d
     description: max of days_since_login for login_status=is_login_success, login_os=is_ios over the 14
       days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_success_is_ios_l14d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_success_is_ios_l30d
     description: max of days_since_login for login_status=is_login_success, login_os=is_ios over the 30
       days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_success_is_ios_l30d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_success_is_ios_all_time
     description: max of days_since_login for login_status=is_login_success, login_os=is_ios over all history
       up to and including the as-of date (whole calendar days from min_event_timestamp_is_login_success_is_ios_all_time
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_success_is_android_l7d
     description: max of days_since_login for login_status=is_login_success, login_os=is_android over the
       7 days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_success_is_android_l7d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_success_is_android_l14d
     description: max of days_since_login for login_status=is_login_success, login_os=is_android over the
       14 days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_success_is_android_l14d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_success_is_android_l30d
     description: max of days_since_login for login_status=is_login_success, login_os=is_android over the
       30 days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_success_is_android_l30d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_success_is_android_all_time
     description: max of days_since_login for login_status=is_login_success, login_os=is_android over all
       history up to and including the as-of date (whole calendar days from min_event_timestamp_is_login_success_is_android_all_time
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_success_is_others_l7d
     description: max of days_since_login for login_status=is_login_success, login_os=is_others over the
       7 days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_success_is_others_l7d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_success_is_others_l14d
     description: max of days_since_login for login_status=is_login_success, login_os=is_others over the
       14 days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_success_is_others_l14d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_success_is_others_l30d
     description: max of days_since_login for login_status=is_login_success, login_os=is_others over the
       30 days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_success_is_others_l30d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_success_is_others_all_time
     description: max of days_since_login for login_status=is_login_success, login_os=is_others over all
       history up to and including the as-of date (whole calendar days from min_event_timestamp_is_login_success_is_others_all_time
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_failed_l7d
     description: max of days_since_login for login_status=is_login_failed, login_os=default over the 7
       days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_failed_l7d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_failed_l14d
     description: max of days_since_login for login_status=is_login_failed, login_os=default over the 14
       days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_failed_l14d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_failed_l30d
     description: max of days_since_login for login_status=is_login_failed, login_os=default over the 30
       days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_failed_l30d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_failed_all_time
     description: max of days_since_login for login_status=is_login_failed, login_os=default over all history
       up to and including the as-of date (whole calendar days from min_event_timestamp_is_login_failed_all_time
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_failed_is_ios_l7d
     description: max of days_since_login for login_status=is_login_failed, login_os=is_ios over the 7
       days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_failed_is_ios_l7d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_failed_is_ios_l14d
     description: max of days_since_login for login_status=is_login_failed, login_os=is_ios over the 14
       days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_failed_is_ios_l14d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_failed_is_ios_l30d
     description: max of days_since_login for login_status=is_login_failed, login_os=is_ios over the 30
       days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_failed_is_ios_l30d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_failed_is_ios_all_time
     description: max of days_since_login for login_status=is_login_failed, login_os=is_ios over all history
       up to and including the as-of date (whole calendar days from min_event_timestamp_is_login_failed_is_ios_all_time
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_failed_is_android_l7d
     description: max of days_since_login for login_status=is_login_failed, login_os=is_android over the
       7 days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_failed_is_android_l7d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_failed_is_android_l14d
     description: max of days_since_login for login_status=is_login_failed, login_os=is_android over the
       14 days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_failed_is_android_l14d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_failed_is_android_l30d
     description: max of days_since_login for login_status=is_login_failed, login_os=is_android over the
       30 days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_failed_is_android_l30d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_failed_is_android_all_time
     description: max of days_since_login for login_status=is_login_failed, login_os=is_android over all
       history up to and including the as-of date (whole calendar days from min_event_timestamp_is_login_failed_is_android_all_time
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_failed_is_others_l7d
     description: max of days_since_login for login_status=is_login_failed, login_os=is_others over the
       7 days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_failed_is_others_l7d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_failed_is_others_l14d
     description: max of days_since_login for login_status=is_login_failed, login_os=is_others over the
       14 days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_failed_is_others_l14d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_failed_is_others_l30d
     description: max of days_since_login for login_status=is_login_failed, login_os=is_others over the
       30 days ending on the as-of date (inclusive) (whole calendar days from min_event_timestamp_is_login_failed_is_others_l30d
       to the as-of date)
+    data_type: bigint
   - name: max_days_since_login_is_login_failed_is_others_all_time
     description: max of days_since_login for login_status=is_login_failed, login_os=is_others over all
       history up to and including the as-of date (whole calendar days from min_event_timestamp_is_login_failed_is_others_all_time
       to the as-of date)
+    data_type: bigint
   - name: _first_event_date
     description: Earliest event_date ever seen for this entity.
+    data_type: date
   - name: _last_event_date
     description: Latest event_date seen at or before target_date. Use it to tell a genuine zero from a
       dormant entity.
+    data_type: date
   - name: _generated_at
     description: Wall-clock time this row was materialised.
+    data_type: timestamp
   - name: _spec_version
-    description: Fingerprint of the spec that produced this row (6c9b3cc88a21). A change here explains
+    description: Fingerprint of the spec that produced this row (a7a086250bfc). A change here explains
       a change in feature semantics.
-- name: int_fact_agg_features_login_history_v2__daily_partials
-  description: 'Reusable per-entity, per-event_date partial aggregate state. Composable by construction:
-    every published window is a fold over these rows.'
-  data_tests:
-  - fs_unique_combination:
-      arguments:
-        combination_of_columns:
-        - safe_id
-        - event_date
-  columns:
-  - name: event_date
-    description: Calendar date of the events summarised by this row.
-    data_tests:
-    - not_null
-  - name: safe_id
-    description: Entity key (safe_id).
-    data_tests:
-    - not_null
-- name: int_fact_agg_features_login_history_v2__alltime_state
-  description: Sealed all_time accumulator, one row per entity. Advances only over event_dates old enough
-    to be immune to late arrivals.
-  data_tests:
-  - fs_unique_combination:
-      arguments:
-        combination_of_columns:
-        - safe_id
-  columns:
-  - name: safe_id
-    description: Entity key (safe_id).
-    data_tests:
-    - not_null
-  - name: _state_as_of_date
-    description: 'Watermark: every event_date at or before this has been folded in. Drives the self-healing,
-      idempotent catch-up range.'
-    data_tests:
-    - not_null
+    data_type: string
+exposures:
+- name: login_offline_store
+  type: application
+  maturity: medium
+  description: 'Parquet offline store on S3, one partition per as-of date, written by
+
+    showcase/tools/publish_offline_store.py after every daily run.'
+  owner:
+    name: data-platform
+  depends_on:
+  - ref('fact_agg_features_login_history_v2')
+- name: login_feature_validation
+  type: notebook
+  maturity: low
+  description: 'Validation notebook that reads the offline store the way a training
+
+    pipeline would. showcase/notebooks/01_validate_feature_store.ipynb.'
+  owner:
+    name: data-platform
+  depends_on:
+  - ref('fact_agg_features_login_history_v2')

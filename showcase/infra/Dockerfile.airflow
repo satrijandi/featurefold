@@ -11,9 +11,19 @@ USER airflow
 COPY --chown=airflow:root pyproject.toml /tmp/build/pyproject.toml
 COPY --chown=airflow:root generator /tmp/build/generator
 
+# dbt gets a virtualenv of its own. Installed into Airflow's environment, the
+# two would have to agree on every shared dependency on every upgrade of
+# either, and a conflict there surfaces as a broken scheduler rather than a
+# failed build. The DAG invokes it through FS_DBT_BIN.
+RUN python -m venv /opt/dbt \
+ && /opt/dbt/bin/pip install --no-cache-dir \
+      "dbt-core>=1.11,<1.13" "dbt-duckdb>=1.11,<1.12"
+ENV FS_DBT_BIN=/opt/dbt/bin/dbt
+
+# What the DAG's own Python needs: the registry reader and the operational
+# tools it calls (revision window, offline-store publisher).
 RUN pip install --no-cache-dir \
-      "dbt-core>=1.9,<1.11" "dbt-duckdb>=1.9,<1.11" "duckdb>=1.1.3" \
-      "pyyaml>=6.0.2" "jinja2>=3.1.4" "click>=8.1.7" "boto3>=1.35" \
+      "duckdb>=1.1.3" "pyyaml>=6.0.2" "jinja2>=3.1.4" "click>=8.1.7" "boto3>=1.35" \
  && pip install --no-cache-dir --no-deps /tmp/build
 
 # Tasks run from the showcase directory, which is what makes `python -m tools.x`

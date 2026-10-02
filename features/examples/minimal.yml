@@ -21,3 +21,4 @@ relations:
   bronze.events.customer_login:
     source_name: bronze_events
     table_name: customer_login
+    loaded_at: _loaded_at

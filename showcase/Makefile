@@ -16,7 +16,9 @@
 REPO          := $(abspath $(CURDIR)/..)
 PY            := $(CURDIR)/.venv/bin/python
 DBT           := $(CURDIR)/.venv/bin/dbt
-COMPOSE       := docker compose -f infra/docker-compose.yml
+SQLFLUFF      := $(CURDIR)/.venv/bin/sqlfluff
+LOCAL_ENV     := infra/local.env
+COMPOSE       := docker compose -f infra/docker-compose.yml --env-file $(LOCAL_ENV)
 
 TARGET_DATE   ?= $(shell date -u +%F)
 BACKFILL_FROM ?= 2026-07-01
@@ -36,10 +38,18 @@ export DBT_TARGET_PATH  = $(CURDIR)/target
 export DBT_LOG_PATH     = $(CURDIR)/logs
 export DBT_DUCKDB_PATH  = $(CURDIR)/warehouse.duckdb
 
+# Object-store credentials for the local stack, read from the one file that
+# holds them. `?=` so that anything already in the environment -- a real store,
+# a CI secret -- wins over the throwaway local keys. Only the S3_ keys: the
+# tools need nothing else from it, and the Airflow ones are docker compose's.
+$(foreach kv,$(shell grep -E '^S3_[A-Z0-9_]+=' $(LOCAL_ENV)),\
+  $(eval $(firstword $(subst =, ,$(kv))) ?= $(word 2,$(subst =, ,$(kv)))))
+export S3_ENDPOINT S3_ACCESS_KEY S3_SECRET_KEY
+
 .DEFAULT_GOAL := help
 .PHONY: help setup seed dbt-backfill dbt-run dbt-revise dbt-test dbt-docs \
         dbt-docs-generate rehearse verify e2e kmv audit audit-fix publish \
-        notebook lint test stack-up stack-down stack-logs ci clean
+        notebook lint sqllint evaluate test stack-up stack-down stack-logs ci clean
 
 help:  ## Show this help
 	@grep -hE '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -64,12 +74,17 @@ dbt-backfill:  ## Initial load: rebuild everything from BACKFILL_FROM in one pas
 dbt-run:  ## Build one as-of date
 	$(DBT) run --vars '{target_date: $(TARGET_DATE)}'
 
-dbt-revise:  ## Refresh the partitions that are still provisional
-	@dates=$$($(PY) -m tools.revision_window $(FEATURE) $(TARGET_DATE)); \
-	if [ -z "$$dates" ]; then echo "nothing refreshable: earlier partitions are final"; else \
-	  for d in $$dates; do echo "refreshing $$d"; \
-	    $(DBT) build --select 'tag:$(FEATURE)' --vars "{target_date: $$d}" -q || exit 1; \
-	  done; fi
+# Every spec, as the DAG does: each has its own window, resolved from its own
+# registry and accumulator. Set REVISE to narrow it to some of them.
+REVISE ?= $(basename $(notdir $(wildcard $(REPO)/registry/*.json)))
+
+dbt-revise:  ## Refresh the partitions that are still provisional, for every spec
+	@for f in $(REVISE); do \
+	  dates=$$($(PY) -m tools.revision_window $$f $(TARGET_DATE)) || exit 1; \
+	  if [ -z "$$dates" ]; then echo "$$f: nothing refreshable, earlier partitions are final"; \
+	  else for d in $$dates; do echo "$$f: refreshing $$d"; \
+	    $(DBT) build --select "tag:$$f" --vars "{target_date: $$d}" -q || exit 1; \
+	  done; fi; done
 
 dbt-test:  ## Run schema tests, the generated invariants, and adapter conformance
 	$(DBT) test --vars '{target_date: $(TARGET_DATE)}'
@@ -100,21 +115,43 @@ kmv:  ## Measure the approximate-distinct sketch against exact ground truth
 	$(PY) -m tools.verify_kmv_accuracy $(TARGET_DATE)
 
 audit:  ## Audit the published offline store against its own contract
-	S3_ENDPOINT=$${S3_ENDPOINT:-localhost:8433} $(PY) -m tools.audit_offline_store
+	$(PY) -m tools.audit_offline_store
 
 audit-fix:  ## Republish any offline-store partition that violates its contract
-	S3_ENDPOINT=$${S3_ENDPOINT:-localhost:8433} $(PY) -m tools.audit_offline_store --fix
+	$(PY) -m tools.audit_offline_store --fix
 
 publish:  ## Publish a mart partition to the offline store on S3
-	S3_ENDPOINT=$${S3_ENDPOINT:-localhost:8433} \
-	  $(PY) -m tools.publish_offline_store $(FEATURE) $(TARGET_DATE)
+	$(PY) -m tools.publish_offline_store $(FEATURE) $(TARGET_DATE)
 
 notebook:  ## Rebuild the validation notebook from its builder
 	$(PY) -m tools.build_notebook
 
 lint:  ## Lint the showcase tools
-	$(CURDIR)/.venv/bin/ruff check tools tests
-	$(CURDIR)/.venv/bin/ruff format --check tools tests
+	$(CURDIR)/.venv/bin/ruff check tools tests orchestration
+	$(CURDIR)/.venv/bin/ruff format --check tools tests orchestration
+
+# sqlfluff renders the Jinja before it lints, so it only ever sees one side of
+# each `is_incremental()` branch: the side the warehouse it compiles against
+# selects. Two passes see both -- an empty warehouse renders the first-build
+# branches, the real one (after `rehearse`) the incremental ones. The style
+# rules themselves live with the project, in ../transform/.sqlfluff.
+sqllint:  ## Lint the generated SQL and its runtime, on both sides of is_incremental()
+	@empty=$$(mktemp -d); \
+	echo "first-build branches (empty warehouse)"; \
+	(cd $(DBT_PROJECT_DIR) && DBT_DUCKDB_PATH=$$empty/empty.duckdb $(SQLFLUFF) lint models tests); \
+	status=$$?; rm -rf $$empty; exit $$status
+	@echo "incremental branches (built warehouse)"
+	cd $(DBT_PROJECT_DIR) && $(SQLFLUFF) lint models tests
+
+# The evaluator is a dbt project of its own that installs ../transform as a
+# package (see evaluator/dbt_project.yml for why). It builds into a scratch
+# DuckDB file of its own, so it never touches the rehearsal warehouse.
+evaluate:  ## Lint the generated project's structure with dbt_project_evaluator
+	cd evaluator && \
+	  export DBT_PROJECT_DIR=$(CURDIR)/evaluator DBT_TARGET_PATH=$(CURDIR)/target/evaluator \
+	         DBT_DUCKDB_PATH=$(CURDIR)/target/evaluator.duckdb && \
+	  $(DBT) deps && \
+	  $(DBT) build --select package:dbt_project_evaluator dbt_project_evaluator_exceptions
 
 test:  ## Unit-test the showcase tools
 	$(PY) -m pytest tests -q
@@ -125,7 +162,7 @@ stack-up:  ## Start SeaweedFS, Airflow and Jupyter
 	@echo ""
 	@echo "  SeaweedFS S3   http://localhost:$${FS_S3_PORT:-8433}"
 	@echo "  SeaweedFS UI   http://localhost:$${FS_SEAWEED_UI_PORT:-9433}"
-	@echo "  Airflow        http://localhost:$${FS_AIRFLOW_PORT:-8081}  (admin/admin)"
+	@echo "  Airflow        http://localhost:$${FS_AIRFLOW_PORT:-8081}  (login: $(LOCAL_ENV))"
 	@echo "  JupyterLab     http://localhost:$${FS_JUPYTER_PORT:-8900}"
 
 stack-down:  ## Stop the stack and drop its volumes
@@ -141,8 +178,10 @@ stack-logs:  ## Tail stack logs
 ci:  ## The whole end-to-end gate, on the rehearsal dates
 	$(MAKE) lint
 	$(MAKE) test
+	$(MAKE) evaluate
 	$(MAKE) seed
 	$(MAKE) rehearse
+	$(MAKE) sqllint
 	$(MAKE) dbt-test TARGET_DATE=$(LAST_DATE)
 	@for d in $(VERIFY_DATES); do $(MAKE) verify TARGET_DATE=$$d || exit 1; done
 	$(MAKE) kmv TARGET_DATE=$(LAST_DATE)

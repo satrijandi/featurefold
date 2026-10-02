@@ -14,6 +14,7 @@ from pathlib import Path
 
 import duckdb
 import pytest
+from generator.registry import Registry
 
 from tools.revision_window import REGISTRY_DIR, refreshable_dates
 
@@ -27,7 +28,7 @@ def db(tmp_path: Path):
 
     seq = [0]
 
-    def _make(watermark: date | None) -> Path:
+    def _make(watermark: date | None, first_served: date | None = None) -> Path:
         # A fresh file per call, so a sweep over watermark positions does not
         # accumulate state between iterations.
         seq[0] += 1
@@ -43,6 +44,11 @@ def db(tmp_path: Path):
                 f"insert into intermediate.int_{FEATURE}__alltime_state values ('x', ?)",
                 [watermark],
             )
+        if first_served is not None:
+            con.execute("create schema if not exists marts")
+            con.execute(
+                f"create table marts.{FEATURE} as select ?::date as target_date", [first_served]
+            )
         con.close()
         return path
 
@@ -51,10 +57,8 @@ def db(tmp_path: Path):
 
 def test_late_arrival_days_comes_from_the_committed_registry(db):
     """The window's width is the spec's, not a constant duplicated here."""
-    import json
-
-    registry = json.loads((REGISTRY_DIR / f"{FEATURE}.json").read_text())
-    assert registry["settings"]["late_arrival_days"] == LATE
+    registry = Registry.load(REGISTRY_DIR / f"{FEATURE}.json")
+    assert registry.late_arrival_days == LATE
     assert len(refreshable_dates(FEATURE, date(2026, 9, 3), db(None))) == LATE
 
 
@@ -75,3 +79,9 @@ def test_an_unbuilt_accumulator_is_not_an_error(db, tmp_path):
     empty = tmp_path / "empty.duckdb"
     duckdb.connect(str(empty)).close()
     assert len(refreshable_dates(FEATURE, date(2026, 9, 3), empty)) == LATE
+
+
+def test_the_oldest_served_partition_bounds_the_window(db):
+    """The day after an initial load, the window must not build dates before it."""
+    dates = refreshable_dates(FEATURE, date(2026, 8, 21), db(date(2026, 8, 17), date(2026, 8, 20)))
+    assert dates == [date(2026, 8, 20)]

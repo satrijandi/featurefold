@@ -13,17 +13,12 @@ from dataclasses import dataclass
 from dataclasses import field as dc_field
 from pathlib import Path
 from typing import Any, Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
-# Aggregations whose partial state is a plain scalar carried straight through.
-SCALAR_AGGS = {"count", "sum", "min", "max"}
-DISTINCT_AGGS = {"count_distinct"}
-SUPPORTED_AGGS = SCALAR_AGGS | DISTINCT_AGGS | {"avg"}
-
-# Aggregations that need to know the field's data type to emit a column type.
-TYPED_AGGS = {"min", "max", "sum", "avg"}
+from generator.aggregates import AGG_KEYS, Aggregation, DaysSince, get_aggregate
 
 FIELD_TYPE_MAP = {
     "numeric": "double",
@@ -43,7 +38,26 @@ FIELD_TYPE_MAP = {
 
 WINDOW_RE = re.compile(r"^l(\d+)d$", re.IGNORECASE)
 IDENT_RE = re.compile(r"^[a-z_][a-z0-9_]*$")
+COLUMN_RE = re.compile(r"^[A-Za-z_][\w]*$")
 TARGET_DATE_RE = re.compile(r"\{\{\s*target_date\s*\}\}")
+JOIN_RE = re.compile(r"(?i)\bjoin\b")
+
+# Names the generated staging model gives a relation's knowledge-time columns,
+# so every layer above it reads one spelling whatever the source calls them.
+LOADED_AT = "_fs_loaded_at"
+SUPERSEDED_AT = "_fs_superseded_at"
+
+
+def _check_timezone(name: str) -> str:
+    """An IANA zone name, checked against the tz database rather than trusted."""
+    try:
+        ZoneInfo(name)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise ValueError(
+            f"{name!r} is not an IANA time zone name (e.g. 'UTC', 'Asia/Jakarta')"
+        ) from None
+    return name
+
 
 # Recognised shapes for "days between this event and the as-of date".
 # Matching one of these lets a target_date-dependent column stay reusable,
@@ -97,15 +111,53 @@ class SourceRelation:
     environment. With it, the same generated model reads a seeded fixture
     locally and the real Unity Catalog / Snowflake table in production, which
     is what makes the local stack a genuine rehearsal rather than a mock.
+
+    It also carries the facts about the table that point-in-time correctness
+    rests on, because they are properties of the table rather than of any one
+    spec reading it:
+
+      loaded_at      when each row (or row version) became visible in the
+                     warehouse. Required: it is how a run tells what it may
+                     know about, and how it finds the days that changed since
+                     the last run.
+      superseded_at  when a row version was replaced or deleted upstream (SCD2
+                     or soft delete). Absent for an insert-only table.
+      timezone       the zone the table's naive timestamps are recorded in.
+      key            the columns identifying a row across its versions, when
+                     known. It lets the staging model test the history itself:
+                     one row per key and version, and no two versions of a key
+                     current at once -- which would count that row twice.
     """
 
     literal: str
     source_name: str
     table_name: str
+    loaded_at: str
+    superseded_at: str | None = None
+    timezone: str = "UTC"
+    key: tuple[str, ...] = ()
+
+    @property
+    def staging_model(self) -> str:
+        """The one model that reads this source. Every spec reads it through this."""
+        return f"stg_{self.source_name}__{self.table_name}"
 
     @property
     def dbt_ref(self) -> str:
+        return f"{{{{ ref('{self.staging_model}') }}}}"
+
+    @property
+    def dbt_source(self) -> str:
         return f"{{{{ source('{self.source_name}', '{self.table_name}') }}}}"
+
+    def contract(self) -> dict[str, str | list[str] | None]:
+        """Everything two specs reading this table must agree on."""
+        return {
+            "loaded_at": self.loaded_at,
+            "superseded_at": self.superseded_at,
+            "timezone": self.timezone,
+            "key": list(self.key),
+        }
 
 
 def _relation_re(literals: list[str]) -> re.Pattern[str]:
@@ -117,14 +169,18 @@ def _relation_re(literals: list[str]) -> re.Pattern[str]:
     resolves to the name actually written there.
     """
     alts = "|".join(re.escape(lit) for lit in sorted(literals, key=len, reverse=True))
-    return re.compile(rf"(?<![\w.])(?:{alts})(?![\w])")
+    return re.compile(rf"(?<![\w.])(?:{alts})(?![\w])", re.IGNORECASE)
 
 
 def substitute_relations(sql: str, relations: dict[str, SourceRelation]) -> str:
-    """Replace every mapped relation name in `sql` with its dbt source()."""
+    """Replace every mapped relation name in `sql` with a ref() to its staging model.
+
+    Matched without regard to case, like the warehouse resolves an unquoted name.
+    """
     if not relations:
         return sql
-    return _relation_re(list(relations)).sub(lambda m: relations[m.group(0)].dbt_ref, sql)
+    by_name = {lit.lower(): rel for lit, rel in relations.items()}
+    return _relation_re(list(relations)).sub(lambda m: by_name[m.group(0).lower()].dbt_ref, sql)
 
 
 @dataclass(frozen=True)
@@ -149,6 +205,13 @@ class AtomicField:
     @property
     def is_derived(self) -> bool:
         return self.derived is not None
+
+    def aggregations(self, kmv_k: int) -> list[Aggregation]:
+        """What each `agg:` entry means for this field, in declaration order."""
+        return [
+            get_aggregate(a, self.distinct_method, kmv_k, days_since=self.is_derived)
+            for a in self.aggs
+        ]
 
 
 @dataclass(frozen=True)
@@ -180,8 +243,16 @@ class Settings(BaseModel):
     # Joins the parts of every generated column name, so it must keep them
     # valid unquoted identifiers.
     separator: str = Field(default="_", pattern=r"^[a-z0-9_]+$")
-    source_is_append_only: bool = True
     materialized_mart: Literal["incremental", "table"] = "incremental"
+    # The business time zone. An event's date, the hour a condition sees and
+    # the end of an as-of day are all read on this clock, never on whatever
+    # the warehouse session happens to be set to.
+    timezone: str = "UTC"
+
+    @field_validator("timezone")
+    @classmethod
+    def _iana_zone(cls, v: str) -> str:
+        return _check_timezone(v)
 
 
 # --------------------------------------------------------------------------- #
@@ -214,8 +285,40 @@ class _AtomicFieldDoc(BaseModel):
 
 class _RelationDoc(BaseModel):
     model_config = _STRICT
-    source_name: str
-    table_name: str
+    source_name: str = Field(pattern=r"^[a-z_][a-z0-9_]*$")
+    table_name: str = Field(pattern=r"^[a-z_][a-z0-9_]*$")
+    loaded_at: str = Field(pattern=COLUMN_RE.pattern)
+    superseded_at: str | None = Field(default=None, pattern=COLUMN_RE.pattern)
+    timezone: str = "UTC"
+    key: list[str] | None = None
+
+    @field_validator("key")
+    @classmethod
+    def _columns(cls, v: list[str] | None) -> list[str] | None:
+        if v is not None and (not v or not all(COLUMN_RE.match(c) for c in v)):
+            raise ValueError("must be a non-empty list of column names")
+        return v
+
+    @field_validator("timezone")
+    @classmethod
+    def _iana_zone(cls, v: str) -> str:
+        return _check_timezone(v)
+
+
+class _OwnerDoc(BaseModel):
+    model_config = _STRICT
+    name: str | None = None
+    email: str | None = None
+
+
+class _ExposureDoc(BaseModel):
+    model_config = _STRICT
+    name: str = Field(pattern=r"^[a-z_][a-z0-9_]*$")
+    type: Literal["ml", "application", "notebook", "analysis", "dashboard"]
+    owner: _OwnerDoc
+    description: str | None = None
+    url: str | None = None
+    maturity: Literal["low", "medium", "high"] | None = None
 
 
 class _SpecDoc(BaseModel):
@@ -225,13 +328,14 @@ class _SpecDoc(BaseModel):
     created_by: str | None = None
     description: str | None = None
     source: str
-    entities: list[str]
+    entities: list[str | dict[str, str]]
     timestamp_col: str
     condition_cat: list[dict[str, list[dict[str, str]]]] | None = None
     time_cat: list[str]
     atomic_field: list[dict[str, _AtomicFieldDoc]]
     settings: Settings | None = None
-    relations: dict[str, _RelationDoc] | None = None
+    relations: dict[str, _RelationDoc]
+    exposures: list[_ExposureDoc] | None = None
 
 
 def _shape_error(path: Path, exc: ValidationError) -> SpecError:
@@ -251,6 +355,19 @@ def _shape_error(path: Path, exc: ValidationError) -> SpecError:
     return SpecError(f"{path}: invalid spec\n" + "\n".join(lines))
 
 
+@dataclass(frozen=True)
+class Exposure:
+    """A downstream consumer of the published mart, recorded as a dbt exposure."""
+
+    name: str
+    type: str
+    owner_name: str | None
+    owner_email: str | None
+    description: str = ""
+    url: str | None = None
+    maturity: str | None = None
+
+
 @dataclass
 class FeatureSpec:
     feature_name: str
@@ -264,11 +381,36 @@ class FeatureSpec:
     windows: tuple[TimeWindow, ...]
     fields: list[AtomicField]
     settings: Settings
+    #: Logical type of each entity key, published in the mart's contract.
+    entity_types: dict[str, str] = dc_field(default_factory=dict)
     source_columns: dict[str, str] = dc_field(default_factory=dict)
     parsed_source: ParsedSource | None = None
     relations: dict[str, SourceRelation] = dc_field(default_factory=dict)
+    exposures: tuple[Exposure, ...] = ()
     spec_path: Path | None = None
     raw: dict[str, Any] = dc_field(default_factory=dict)
+
+    @property
+    def relation(self) -> SourceRelation:
+        """The one table this spec reads. validate_spec guarantees there is exactly one."""
+        (rel,) = self.relations.values()
+        return rel
+
+    @property
+    def timestamp_aliases(self) -> list[str]:
+        """Source aliases holding timestamps, in projection order.
+
+        These are the columns that are moved onto the business clock before
+        anything reads them: the event timestamp itself, any atomic field typed
+        as a timestamp, and the anchor of every days_since derivation.
+        """
+        names = {self.timestamp_col.lower()}
+        for f in self.fields:
+            if f.field_type == "timestamp" and not f.is_derived:
+                names.add(f.name.lower())
+            if f.derived is not None:
+                names.add(f.derived.from_field.lower())
+        return [alias for alias in self.source_columns if alias in names]
 
     @property
     def has_all_time(self) -> bool:
@@ -284,9 +426,49 @@ class FeatureSpec:
 
     @property
     def spec_hash(self) -> str:
-        """Stable fingerprint of the spec, stamped onto every generated row."""
-        payload = yaml.safe_dump(self.raw, sort_keys=True, default_flow_style=False)
-        return hashlib.sha256(payload.encode()).hexdigest()[:12]
+        """Stable fingerprint of the spec, stamped onto every published row."""
+        return _fingerprint(self.raw)
+
+    @property
+    def state_version(self) -> str:
+        """Fingerprint of everything that decides what the STORED state means.
+
+        Stamped on every partial and accumulator row. Unlike spec_hash it
+        ignores what cannot change a stored value (descriptions, windows, the
+        spine, the seal delay), so editing a description does not demand a
+        rebuild, while changing a predicate, a source expression or the time
+        zone does: rows folded under the old meaning would otherwise sit beside
+        rows folded under the new one, with nothing to tell them apart.
+        """
+        settings = self.settings
+        return _fingerprint(
+            {
+                "source": self.source_sql,
+                "entities": self.raw.get("entities"),
+                "timestamp_col": self.timestamp_col,
+                "condition_cat": self.raw.get("condition_cat"),
+                "atomic_field": [
+                    {
+                        "name": f.name,
+                        "apply_cond_cat": list(f.apply_cond_cat),
+                        "agg": list(f.aggs),
+                        "field_type": f.field_type,
+                        "distinct_method": f.distinct_method,
+                        "derived": f.derived.from_field if f.derived else None,
+                    }
+                    for f in self.fields
+                ],
+                "relations": {k: r.contract() for k, r in self.relations.items()},
+                "kmv_k": settings.kmv_k,
+                "separator": settings.separator,
+                "timezone": settings.timezone,
+            }
+        )
+
+
+def _fingerprint(payload: Any) -> str:
+    text = yaml.safe_dump(payload, sort_keys=True, default_flow_style=False)
+    return hashlib.sha256(text.encode()).hexdigest()[:12]
 
 
 # --------------------------------------------------------------------------- #
@@ -297,6 +479,52 @@ class FeatureSpec:
 def _strip_sql_comments(sql: str) -> str:
     sql = re.sub(r"--[^\n]*", "", sql)
     return re.sub(r"/\*.*?\*/", "", sql, flags=re.DOTALL)
+
+
+def _strip_sql_literals(sql: str) -> str:
+    """Blank out string literals, so a keyword inside one is never read as SQL."""
+    return re.sub(r"'(?:[^']|'')*'", "''", sql)
+
+
+def lowercase_sql(sql: str) -> str:
+    """Lowercase SQL outside string literals, quoted identifiers, comments and Jinja.
+
+    Authored fragments are pasted into generated models whose house style is
+    lower case. Unquoted identifiers and keywords are case-insensitive on every
+    supported warehouse, so this changes how the SQL reads and never what it
+    means; anything whose case could matter -- a literal, a quoted name, a
+    Jinja expression -- is copied through untouched.
+    """
+    out: list[str] = []
+    i, n = 0, len(sql)
+    while i < n:
+        if sql.startswith(("{{", "{%", "{#"), i):
+            close = {"{{": "}}", "{%": "%}", "{#": "#}"}[sql[i : i + 2]]
+            end = sql.find(close, i + 2)
+            end = n if end < 0 else end + 2
+        elif sql.startswith("--", i):
+            end = sql.find("\n", i)
+            end = n if end < 0 else end
+        elif sql.startswith("/*", i):
+            end = sql.find("*/", i + 2)
+            end = n if end < 0 else end + 2
+        elif sql[i] in "'\"`":
+            quote, end = sql[i], i + 1
+            while end < n:
+                if sql[end] == quote:
+                    if end + 1 < n and sql[end + 1] == quote:
+                        end += 2  # doubled quote: an escaped literal quote
+                        continue
+                    break
+                end += 1
+            end = min(end + 1, n)
+        else:
+            out.append(sql[i].lower())
+            i += 1
+            continue
+        out.append(sql[i:end])
+        i = end
+    return "".join(out)
 
 
 def _split_top_level(text: str, sep: str = ",") -> list[str]:
@@ -417,8 +645,8 @@ def parse_source(source_sql: str) -> ParsedSource:
                 f"source projects an expression with no alias: {item!r}. Add `AS <name>` "
                 "so it can be referenced as an atomic field or a condition operand."
             )
-        items.append((alias.lower(), " ".join(expr.split())))
-    return ParsedSource(items=items, from_clause=from_clause)
+        items.append((alias.lower(), " ".join(lowercase_sql(expr).split())))
+    return ParsedSource(items=items, from_clause=lowercase_sql(from_clause))
 
 
 def detect_days_since(expr: str) -> str | None:
@@ -442,6 +670,33 @@ def _one_key_mapping(item: Any, where: str) -> tuple[str, Any]:
     if not isinstance(item, dict) or len(item) != 1:
         raise SpecError(f"{where}: expected a single-key mapping like '- name: ...', got {item!r}")
     return next(iter(item.items()))
+
+
+def _parse_entities(raw: list[str | dict[str, str]]) -> dict[str, str]:
+    """Entity key name -> logical type, from `["id"]` or `[{id: bigint}]` items.
+
+    An untyped key is a string. That is a default rather than a guess: the mart
+    enforces its contract, so a key that is really numeric fails the build
+    loudly on its first run instead of being published under the wrong type.
+    """
+    if not raw:
+        raise SpecError("entities must be a non-empty list")
+    out: dict[str, str] = {}
+    for item in raw:
+        if isinstance(item, str):
+            name, type_ = item, "string"
+        else:
+            name, type_ = _one_key_mapping(item, "entities")
+        key = str(type_).strip().lower()
+        if key not in FIELD_TYPE_MAP:
+            raise SpecError(
+                f"entities.{name}: type {type_!r} is not recognised. "
+                f"Known: {sorted(set(FIELD_TYPE_MAP))}"
+            )
+        if name in out:
+            raise SpecError(f"entities: duplicate key {name!r}")
+        out[str(name)] = FIELD_TYPE_MAP[key]
+    return out
 
 
 def _parse_categories(raw: Any) -> dict[str, ConditionCategory]:
@@ -470,7 +725,7 @@ def _parse_categories(raw: Any) -> dict[str, ConditionCategory]:
                 raise SpecError(
                     f"condition_cat.{cat_name}.{m_name}: predicate must be a SQL string"
                 )
-            members.append(ConditionMember(name=m_name, sql=m_sql.strip()))
+            members.append(ConditionMember(name=m_name, sql=lowercase_sql(m_sql.strip())))
         if cat_name in cats:
             raise SpecError(f"condition_cat: duplicate category {cat_name!r}")
         cats[cat_name] = ConditionCategory(name=cat_name, members=tuple(members))
@@ -531,10 +786,9 @@ def _parse_fields(raw: Any, categories: dict[str, ConditionCategory]) -> list[At
         if not isinstance(aggs, list) or not aggs:
             raise SpecError(f"atomic_field.{name}.agg must be a non-empty list")
         for agg in aggs:
-            if agg not in SUPPORTED_AGGS:
+            if agg not in AGG_KEYS:
                 raise SpecError(
-                    f"atomic_field.{name}: unsupported agg {agg!r}. "
-                    f"Supported: {sorted(SUPPORTED_AGGS)}"
+                    f"atomic_field.{name}: unsupported agg {agg!r}. Supported: {sorted(AGG_KEYS)}"
                 )
         if len(set(aggs)) != len(aggs):
             raise SpecError(f"atomic_field.{name}.agg contains duplicates")
@@ -606,9 +860,7 @@ def load_spec(path: str | Path) -> FeatureSpec:
             f"feature_type {feature_type!r} is not implemented. Only 'daily' batch is supported."
         )
 
-    entities = raw["entities"]
-    if not isinstance(entities, list) or not entities:
-        raise SpecError("entities must be a non-empty list")
+    entity_types = _parse_entities(doc.entities)
 
     categories = _parse_categories(raw.get("condition_cat", []))
     windows = _parse_windows(raw["time_cat"])
@@ -617,10 +869,33 @@ def load_spec(path: str | Path) -> FeatureSpec:
     settings = doc.settings or Settings()
     relations = {
         literal: SourceRelation(
-            literal=literal, source_name=cfg.source_name, table_name=cfg.table_name
+            literal=literal,
+            source_name=cfg.source_name,
+            table_name=cfg.table_name,
+            loaded_at=cfg.loaded_at,
+            superseded_at=cfg.superseded_at,
+            timezone=cfg.timezone,
+            key=tuple(cfg.key or ()),
         )
-        for literal, cfg in (doc.relations or {}).items()
+        for literal, cfg in doc.relations.items()
     }
+    exposures = tuple(
+        Exposure(
+            name=e.name,
+            type=e.type,
+            owner_name=e.owner.name,
+            owner_email=e.owner.email,
+            description=(e.description or "").strip(),
+            url=e.url,
+            maturity=e.maturity,
+        )
+        for e in doc.exposures or []
+    )
+    for e in exposures:
+        if not (e.owner_name or e.owner_email):
+            raise SpecError(f"exposures.{e.name}.owner needs a name or an email")
+    if len({e.name for e in exposures}) != len(exposures):
+        raise SpecError("exposures: two exposures share a name")
 
     spec = FeatureSpec(
         feature_name=feature_name,
@@ -628,13 +903,15 @@ def load_spec(path: str | Path) -> FeatureSpec:
         created_by=str(raw.get("created_by", "unknown")),
         description=str(raw.get("description", "") or "").strip(),
         source_sql=str(raw["source"]).strip(),
-        entities=tuple(str(e) for e in entities),
+        entities=tuple(entity_types),
+        entity_types=entity_types,
         timestamp_col=str(raw["timestamp_col"]),
         categories=categories,
         windows=windows,
         fields=fields,
         settings=settings,
         relations=relations,
+        exposures=exposures,
         spec_path=path,
         raw=raw,
     )
@@ -664,6 +941,13 @@ def _resolve_operand_to_alias(operand: str, source_columns: dict[str, str]) -> s
 def validate_spec(spec: FeatureSpec) -> None:
     src = spec.source_columns
     known = sorted(src)
+
+    for alias in src:
+        if alias == "event_date" or alias.startswith("_fs_"):
+            raise SpecError(
+                f"source projects {alias!r}, a name the generated models reserve for "
+                "themselves. Alias it to something else."
+            )
 
     for ent in spec.entities:
         if ent.lower() not in src:
@@ -735,7 +1019,7 @@ def validate_spec(spec: FeatureSpec) -> None:
                     f"atomic_field {f.name!r}: derived.from {base!r} itself depends on "
                     "target_date, so it cannot anchor a derivation."
                 )
-            unsupported = set(f.aggs) - {"min", "max"}
+            unsupported = set(f.aggs) - set(DaysSince.KEYS)
             if unsupported:
                 raise SpecError(
                     f"atomic_field {f.name!r} is a days_since derivation, which is monotonic in "
@@ -746,19 +1030,19 @@ def validate_spec(spec: FeatureSpec) -> None:
             f.field_type = f.field_type or "bigint"
 
         # --- typing -----------------------------------------------------------
-        typed = [a for a in f.aggs if a in TYPED_AGGS]
-        if typed and not f.field_type:
+        aggregations = f.aggregations(spec.settings.kmv_k)
+        untyped = [a.key for a in aggregations if a.requires_field_type and not f.field_type]
+        if untyped:
             raise SpecError(
-                f"atomic_field {f.name!r} uses {typed} which need a declared type. "
+                f"atomic_field {f.name!r} uses {untyped} which need a declared type. "
                 "Add e.g. field_type: timestamp | numeric | string."
             )
-        if f.field_type in ("timestamp", "date", "varchar", "boolean"):
-            numeric_only = [a for a in f.aggs if a in ("sum", "avg")]
-            if numeric_only:
-                raise SpecError(
-                    f"atomic_field {f.name!r} has field_type {f.field_type!r} but requests "
-                    f"{numeric_only}, which need a numeric field."
-                )
+        non_numeric = [a.key for a in aggregations if a.accepts(f.field_type)]
+        if non_numeric:
+            raise SpecError(
+                f"atomic_field {f.name!r} has field_type {f.field_type!r} but requests "
+                f"{non_numeric}, which need a numeric field."
+            )
 
         if f.distinct_method == "approx" and "count_distinct" not in f.aggs:
             raise SpecError(
@@ -789,20 +1073,44 @@ def validate_spec(spec: FeatureSpec) -> None:
 
     unmapped = re.findall(r"(?is)\bfrom\s+([a-z_][\w]*(?:\.[a-z_][\w]*)+)", spec.source_sql)
     unmapped += re.findall(r"(?is)\bjoin\s+([a-z_][\w]*(?:\.[a-z_][\w]*)+)", spec.source_sql)
+    mapped = {lit.lower() for lit in spec.relations}
     for rel in unmapped:
-        if rel not in spec.relations:
+        if rel.lower() not in mapped:
             raise SpecError(
                 f"source reads {rel!r} directly. Hard-coded relations only resolve in one "
                 "environment, so the model could never be run or tested anywhere else. Map it:\n"
                 f"    relations:\n"
                 f"      {rel}:\n"
                 f"        source_name: <dbt source>\n"
-                f"        table_name: <table>"
+                f"        table_name: <table>\n"
+                f"        loaded_at: <column recording when each row became visible>"
             )
 
-    if spec.has_all_time and not spec.settings.source_is_append_only:
+    # Point-in-time reads are generated from the relation's knowledge-time
+    # columns. A hand-written as-of filter would be a second, competing
+    # definition of what a run may know, and one the generator cannot use to
+    # find the days that changed since the last run.
+    if TARGET_DATE_RE.search(_strip_sql_comments(spec.parsed_source.from_clause)):  # type: ignore[union-attr]
         raise SpecError(
-            "time_cat includes 'all_time' but settings.source_is_append_only is false. "
-            "Incrementally accumulated all_time state is only sound over an append-only source; "
-            "a mutable source needs a full recompute strategy that is not implemented."
+            "source filters on {{ target_date }}. The generator writes the as-of filter "
+            "itself, from the relation's knowledge-time columns, so it can also detect late "
+            "arrivals, corrections and deletions. Remove the filter and declare them:\n"
+            "    relations:\n"
+            "      <relation>:\n"
+            "        loaded_at: <column: when a row version became visible>\n"
+            "        superseded_at: <column: when it was replaced or deleted, if ever>"
+        )
+
+    # A joined table would be read as it is NOW, not as it was on each as-of
+    # date, so every feature built from it would quietly see the future.
+    if JOIN_RE.search(_strip_sql_literals(_strip_sql_comments(spec.source_sql))):
+        raise SpecError(
+            "source joins another relation. A join here is not point-in-time: the joined "
+            "table would be read as it stands today for every as-of date. Materialise the "
+            "join upstream into one relation that carries its own loaded_at, and read that."
+        )
+    if len(spec.relations) != 1:
+        raise SpecError(
+            f"source must read exactly one mapped relation, found {len(spec.relations)}. "
+            "Each row's knowledge time comes from that relation's loaded_at."
         )

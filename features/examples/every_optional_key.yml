@@ -14,10 +14,9 @@ source: |
     os_name,
     event_status
   FROM bronze.events.customer_login
-  WHERE
-    ('{{ target_date }}'::DATE >= _scd_valid_from AND '{{ target_date }}'::DATE < _scd_valid_to)
-    AND customer_id IS NOT NULL
-entities: ["safe_id"]
+  WHERE customer_id IS NOT NULL
+entities:
+  - safe_id: string
 timestamp_col: "event_timestamp"
 condition_cat:
   - login_status:
@@ -51,8 +50,20 @@ settings:
   late_arrival_days: 5
   kmv_k: 1024
   separator: "_"
-  source_is_append_only: true
+  materialized_mart: incremental
+  timezone: Asia/Jakarta
 relations:
   bronze.events.customer_login:
     source_name: bronze_events
     table_name: customer_login
+    loaded_at: _scd_valid_from
+    superseded_at: _scd_valid_to
+    timezone: UTC
+    key: [event_id]
+exposures:
+  - name: churn_model
+    type: ml
+    owner: {name: data-science, email: ds@example.com}
+    description: "Weekly churn model trained on these features."
+    url: https://example.com/models/churn
+    maturity: high

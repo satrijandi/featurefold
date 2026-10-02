@@ -4,7 +4,7 @@
 --   layer      : intermediate / bounded window roll-up
 --   feature    : fact_agg_features_login_history_v2
 --   spec       : features/fact_agg_features_login_history_v2.yml
---   spec hash  : 6c9b3cc88a21
+--   spec hash  : a7a086250bfc
 --   generator  : featuremart
 --
 -- Edit the spec and run `make generate`. CI fails when a generated file
@@ -14,6 +14,9 @@
 
 -- Folds at most 30 rows of stored partial state per entity into the
 -- bounded windows. Nothing is recomputed from the raw source here.
+--
+-- An entity whose rows in the widest window are all tombstones has no
+-- activity there, so it is left out exactly as if it had never had any.
 
 {{ config(materialized='view', tags=['feature_store', 'fact_agg_features_login_history_v2']) }}
 
@@ -29,11 +32,14 @@ with bounds as (
 
 partials as (
 
-    select p.*, b.*
-    from {{ ref('int_fact_agg_features_login_history_v2__daily_partials') }} p
-    cross join bounds b
-    where p.event_date >= b.lo_l30d
-      and p.event_date <= b.d_hi
+    select
+        p.*,
+        b.*
+    from {{ ref('int_fact_agg_features_login_history_v2__daily_partials') }} as p
+    cross join bounds as b
+    where
+        p.event_date >= b.lo_l30d
+        and p.event_date <= b.d_hi
 
 )
 
@@ -335,6 +341,7 @@ select
     max(case when event_date >= lo_l14d then p_max_event_timestamp_is_login_failed_is_others end) as max_event_timestamp_is_login_failed_is_others_l14d,
     max(p_max_event_timestamp_is_login_failed_is_others) as max_event_timestamp_is_login_failed_is_others_l30d,
 
-    max(event_date) as _rollup_last_event_date
+    max(case when _n_rows > 0 then event_date end) as _rollup_last_event_date
 from partials
 group by safe_id
+having sum(_n_rows) > 0

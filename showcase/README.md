@@ -16,8 +16,9 @@ showcase/                    |  what makes it run
   profiles.yml               +- the warehouse connection
   seeds/, tools/gen_seed.py  +- a synthetic source with the awkward cases in it
   tools/                     +- verifiers, the offline-store publisher, the scenarios
+  evaluator/                 +- dbt_project_evaluator over the generated project
   orchestration/dags/        +- the registry-derived Airflow DAG
-  infra/                     +- SeaweedFS, Airflow, JupyterLab
+  infra/                     +- SeaweedFS, Airflow, JupyterLab, local.env
   notebooks/                 +- validation from a consumer's seat
 ```
 
@@ -35,8 +36,11 @@ make dbt-revise   TARGET_DATE=2026-08-21       # refresh the still-provisional p
 make dbt-test     TARGET_DATE=2026-08-21       # invariants + conformance
 
 make verify TARGET_DATE=2026-08-21             # brute-force cross-check
-make e2e                                       # retry / gap / late-arrival / replay scenarios
+make e2e                                       # retry / gap / late-arrival / replay / correction scenarios
 make kmv    TARGET_DATE=2026-08-21             # sketch accuracy against exact counts
+
+make sqllint                                   # the generated SQL against ../transform/.sqlfluff
+make evaluate                                  # the project's structure against dbt_project_evaluator
 ```
 
 Run as-of dates **forward**.
@@ -54,6 +58,10 @@ The shape of the fixture matters more than its volume.
 It deliberately contains dormant entities, single-event entities, a device churner with high distinct cardinality, NULL device ids, `os_name` values outside the enum, events in every hour of the day, and rows ingested late but inside the late-arrival window.
 Each one breaks a naive feature pipeline in a different place.
 
+The table is SCD2, like the journal it stands in for: `_scd_valid_from` is when a row version was loaded and `_scd_valid_to` when it was replaced or deleted.
+The fixture writes every version open; the correction scenario in `make e2e` then corrects, deletes and very-late-inserts rows on a day sealed long ago, which is the case a fixed look-back window gets wrong.
+Its timestamps are UTC, and `fact_agg_features_login_history_v2` reads them on `Asia/Jakarta`'s clock, so the business-day conversion is exercised rather than a no-op.
+
 ## The local stack
 
 ```bash
@@ -63,10 +71,15 @@ make stack-up
 | Service | URL | Role |
 |---|---|---|
 | SeaweedFS | `localhost:8433` (S3) | object store standing in for the lake |
-| Airflow | `localhost:8081` | runs the registry-derived DAG (admin/admin) |
+| Airflow | `localhost:8081` | runs the registry-derived DAG (login in `infra/local.env`) |
 | JupyterLab | `localhost:8900` | `notebooks/01_validate_feature_store.ipynb` |
 
 Host ports are deliberately unconventional so the stack coexists with anything already running; override with `FS_S3_PORT`, `FS_AIRFLOW_PORT`, `FS_JUPYTER_PORT`.
+
+The stack's secrets - the object-store keys, the Airflow login, its database password and Fernet key - come from `infra/local.env` and nowhere else: the Makefile loads the object-store keys for the tools (without overriding anything already in the environment), docker compose interpolates the rest into the containers, and Airflow receives the object store as the `fs_object_store` Connection.
+No code and no compose default falls back to a secret; a missing one stops the tool or `docker compose` with a message.
+A deployment keeps the same shape and backs the Connection with its secrets manager.
+Inside the Airflow image dbt has a virtualenv of its own, so dbt and Airflow never have to agree on a shared dependency.
 
 The containers mount the whole repository at `/opt/feature-mart` and work from `/opt/feature-mart/showcase`, so the DAG runs the same generated models that are committed in `../transform`.
 
@@ -102,6 +115,7 @@ It deliberately has no access to the warehouse file: DuckDB takes an exclusive l
 It reads `../registry/*.json` and builds one task group per feature spec, so adding a spec and running `make generate` adds orchestration with no DAG edit.
 
 Every task passes `data_interval_start` as `target_date`, so a manual run, a backfill and a scheduled run all take the same path and produce the same numbers.
+The first task builds everything the partial layer reads, including the shared staging model, whose tests check the source's version history before anything is folded from it.
 The refresh and publish tasks both resolve their dates through `tools/revision_window.py`, so the dates a run refreshes and the dates it publishes cannot drift apart.
 
 ## What this directory proves
@@ -115,8 +129,9 @@ The refresh and publish tasks both resolve their dates through `tools/revision_w
 | rebuild the revision window | a provisional partition never being corrected, or a final one being corrupted |
 | serve a date behind the watermark | sealed state leaking future events into an older partition |
 | dormancy under each spine | `active_window` truncating an entity's history rather than just its rows |
+| correct, delete and very-late-insert on a sealed day | upstream changes never reaching the mart, or an emptied entity lingering as zeros |
 
-`make e2e` runs all seven and asserts on the numbers, not on dbt's exit code.
+`make e2e` runs all eight and asserts on the numbers, not on dbt's exit code.
 `make verify` is the backstop underneath them: it recomputes features the naive way, one flat query over raw source, and requires an exact match on every entity.
 
 ## Pointing it somewhere else
@@ -125,13 +140,13 @@ The three files a production deployment would replace are `profiles.yml`, `orche
 Nothing in `../transform` changes: it declares which profile it wants and nothing about how to connect, which is what makes the same committed models run here and against Databricks or Snowflake.
 
 `DBT_TARGET=databricks make dbt-test` is the check that matters when porting.
-The conformance suite in `../transform/tests/conformance/` asserts all 25 primitive contracts against whichever adapter is configured, so it proves the dialect implementations agree rather than merely compiling.
+The conformance suite in `../transform/tests/conformance/` asserts all 34 primitive contracts against whichever adapter is configured, so it proves the dialect implementations agree rather than merely compiling.
 
 ## Known limits
 
-- **dbt-core 1.10 emits a version-deprecation notice.**
-  All project-level deprecations are resolved; upgrading the pin in `pyproject.toml` is a separate change.
 - **DuckDB is a single-writer file**, so the DAG builds feature groups serially here (`FS_MAX_ACTIVE_TASKS=1`).
   A real warehouse has no such limit; raise it to fan the groups out.
+- **`make evaluate` needs the network**, for `dbt deps`.
+  It is the one step that does: the generated project itself installs no packages.
 - **The notebook cannot read the warehouse**, by design.
   DuckDB's exclusive lock would block the scheduler, and reading the published store is the truer rehearsal anyway.

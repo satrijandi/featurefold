@@ -17,12 +17,17 @@ watermark, so history is loaded with an explicit backfill
 start date) rather than by scheduler catchup. See FS_CATCHUP below.
 
 REVISION WINDOW. A partition is not final the day it is built. The partial layer
-keeps absorbing late-arriving events for `late_arrival_days`, so the marts for
-those days have stale inputs until that window closes. Each run therefore
-republishes the preceding `late_arrival_days` partitions as well as its own.
-Every model is idempotent for a given as-of date, so this is a refresh, not a
-rewrite of history. A partition is provisional until T + late_arrival_days and
-final afterwards.
+keeps absorbing what changes after it -- late events, corrections, deletions --
+so each run republishes the preceding `late_arrival_days` partitions as well as
+its own. Every model is idempotent for a given as-of date, so this is a refresh,
+not a rewrite of history. A partition is provisional until T + late_arrival_days
+and final afterwards; a later change still reaches every partition built after it.
+
+SCHEDULE. The run for day D starts at 02:00 UTC on D+1. That is after D has ended
+on every business clock east of UTC-2; a spec on a clock further west is served
+before its day is over. That is still correct -- a run's knowledge then ends when
+it ran, and the next run picks up the rest of the day -- but the partition is
+less complete when first published, so schedule such a deployment later.
 
 ORDERING. Runs are serialised with max_active_runs=1, and deliberately NOT with
 depends_on_past. The accumulator is self-healing -- it consumes
@@ -37,7 +42,6 @@ ordering; the watermark gives the correctness.
 
 from __future__ import annotations
 
-import json
 import os
 from datetime import timedelta
 from pathlib import Path
@@ -46,6 +50,7 @@ from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.task_group import TaskGroup
+from generator.registry import Registry
 
 # The generated dbt project and the registry are the compiler's output and live
 # in the repository root; the profile, the warehouse and the operational tools
@@ -70,22 +75,18 @@ DBT_ENV = {
     "DBT_LOG_PATH": str(SHOWCASE_ROOT / "logs"),
     "DBT_TARGET": os.getenv("DBT_TARGET", "seaweed"),
     "DBT_DUCKDB_PATH": os.getenv("DBT_DUCKDB_PATH", str(SHOWCASE_ROOT / "warehouse.duckdb")),
-    "S3_ENDPOINT": os.getenv("S3_ENDPOINT", "seaweedfs:8333"),
-    "S3_ACCESS_KEY": os.getenv("S3_ACCESS_KEY", "featuremart"),
-    "S3_SECRET_KEY": os.getenv("S3_SECRET_KEY", "featuremart"),
     "FS_BRONZE_SCHEMA": os.getenv("FS_BRONZE_SCHEMA", "bronze_events"),
     "PATH": os.getenv("PATH", "/usr/local/bin:/usr/bin:/bin"),
+    # Object-store credentials come from the `fs_object_store` Connection,
+    # rendered when each task runs. Nothing here names a credential or falls
+    # back to one: a missing Connection fails the task, and Airflow masks the
+    # password wherever the rendered environment is logged. The local stack
+    # defines the Connection from infra/local.env; a deployment backs it with
+    # its secrets manager.
+    "S3_ENDPOINT": "{{ conn.fs_object_store.host }}:{{ conn.fs_object_store.port }}",
+    "S3_ACCESS_KEY": "{{ conn.fs_object_store.login }}",
+    "S3_SECRET_KEY": "{{ conn.fs_object_store.password }}",
 }
-
-
-def load_registry() -> list[dict]:
-    """Feature specs to orchestrate, read from committed generator output."""
-    if not REGISTRY_DIR.exists():
-        return []
-    out = []
-    for path in sorted(REGISTRY_DIR.glob("*.json")):
-        out.append(json.loads(path.read_text()))
-    return out
 
 
 def dbt_task(task_id: str, command: str, select: str, **kwargs) -> BashOperator:
@@ -135,7 +136,6 @@ with DAG(
     tags=["feature-store", "dbt", "batch"],
     doc_md=__doc__,
 ) as dag:
-
     start = EmptyOperator(task_id="start")
     end = EmptyOperator(task_id="end")
 
@@ -151,28 +151,32 @@ with DAG(
         append_env=True,
     )
 
-    registry = load_registry()
-    if not registry:
+    # Feature specs to orchestrate, read from committed generator output.
+    registries = Registry.load_dir(REGISTRY_DIR)
+    if not registries:
         start >> freshness >> end
 
-    for entry in registry:
-        name = entry["feature_name"]
-        models = entry["models"]
+    for registry in registries:
+        name = registry.feature_name
+        models = registry.models
 
-        with TaskGroup(group_id=name, tooltip=entry.get("description", "")) as group:
-            # Reusable per-day state. Rewrites the late-arrival window as well
-            # as today, so events that arrived late land on their own date.
+        with TaskGroup(group_id=name, tooltip=registry.description) as group:
+            # Reusable per-day state, and everything it reads: the shared
+            # staging model, whose tests check the source's knowledge-time
+            # columns before anything is folded from them, and the spec's events
+            # model. Rewrites exactly the days that changed since the last run
+            # -- new, late, corrected or deleted -- however far back they lie.
             partials = dbt_task(
                 "build_daily_partials",
                 "build",
-                f"{models['staging']}+1 {models['daily_partials']}",
+                f"+{models.daily_partials}",
             )
 
             # The serial fold. Correct in any order thanks to the watermark;
             # running in order simply keeps each run's cost to a single day.
             accumulator = (
-                dbt_task("fold_alltime_state", "build", models["alltime_state"])
-                if models.get("alltime_state")
+                dbt_task("fold_alltime_state", "build", models.alltime_state)
+                if models.alltime_state
                 else None
             )
 
@@ -187,7 +191,7 @@ with DAG(
 
             # Refresh the days whose inputs are still settling. Cheap, because
             # every model is a no-op for a date it has already absorbed.
-            late = int(entry.get("settings", {}).get("late_arrival_days", 0))
+            late = registry.late_arrival_days
 
             # Which past partitions are still refreshable is not a fixed offset:
             # it is bounded below by the accumulator's watermark, because a date
@@ -238,7 +242,7 @@ with DAG(
             if revise is not None:
                 chain.append(revise)
             chain.append(offline)
-            for upstream, downstream in zip(chain, chain[1:]):
+            for upstream, downstream in zip(chain, chain[1:], strict=False):
                 upstream >> downstream
 
         start >> freshness >> group >> end

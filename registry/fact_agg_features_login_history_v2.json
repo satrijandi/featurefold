@@ -1,21 +1,33 @@
 {
   "feature_name": "fact_agg_features_login_history_v2",
-  "spec_version": "6c9b3cc88a21",
+  "spec_version": "a7a086250bfc",
+  "state_version": "dfceaf462f00",
   "feature_type": "daily",
   "owner": "data-platform",
+  "group": "data_platform",
   "description": "This table refers to bronze table customer_login.\nV2 is updated version from V1, which is adding all_time login features",
   "generated_at": "generated-on-demand",
   "generator_version": "0.1.0",
   "entities": [
     "safe_id"
   ],
+  "entity_types": {
+    "safe_id": "varchar"
+  },
   "timestamp_col": "event_timestamp",
   "sources": [
     {
       "literal": "bronze.events.customer_login",
       "dbt_source": "bronze_events",
-      "dbt_table": "customer_login"
+      "dbt_table": "customer_login",
+      "loaded_at": "_scd_valid_from",
+      "superseded_at": "_scd_valid_to",
+      "timezone": "UTC"
     }
+  ],
+  "exposures": [
+    "login_offline_store",
+    "login_feature_validation"
   ],
   "settings": {
     "window_convention": "inclusive",
@@ -23,11 +35,12 @@
     "late_arrival_days": 3,
     "kmv_k": 256,
     "separator": "_",
-    "source_is_append_only": true,
-    "materialized_mart": "incremental"
+    "materialized_mart": "incremental",
+    "timezone": "Asia/Jakarta"
   },
   "models": {
-    "staging": "stg_fact_agg_features_login_history_v2",
+    "staging": "stg_bronze_events__customer_login",
+    "events": "int_fact_agg_features_login_history_v2__events",
     "daily_partials": "int_fact_agg_features_login_history_v2__daily_partials",
     "window_rollup": "int_fact_agg_features_login_history_v2__window_rollup",
     "alltime_state": "int_fact_agg_features_login_history_v2__alltime_state",

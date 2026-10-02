@@ -4,7 +4,7 @@
 --   layer      : intermediate / all_time unsealed tail
 --   feature    : fact_agg_features_login_device_v1
 --   spec       : features/fact_agg_features_login_device_v1.yml
---   spec hash  : 01ce520f1167
+--   spec hash  : e1ebed8aec82
 --   generator  : featuremart
 --
 -- Edit the spec and run `make generate`. CI fails when a generated file
@@ -56,10 +56,12 @@ select
     {{ fs_array_union_agg("p.p_count_distinct_login_source_is_login_success") }} as p_count_distinct_login_source_is_login_success,
     {{ fs_array_union_agg("p.p_count_distinct_login_source_is_login_failed") }} as p_count_distinct_login_source_is_login_failed,
 
-    min(p.event_date) as _min_event_date,
-    max(p.event_date) as _max_event_date
-from {{ ref('int_fact_agg_features_login_device_v1__daily_partials') }} p
-cross join watermark w
-where p.event_date > w.wm
-  and p.event_date <= {{ fs_date_offset_lit(0) }}
+    sum(p._n_rows) as _n_rows,
+    min(case when p._n_rows > 0 then p.event_date end) as _min_event_date,
+    max(case when p._n_rows > 0 then p.event_date end) as _max_event_date
+from {{ ref('int_fact_agg_features_login_device_v1__daily_partials') }} as p
+cross join watermark as w
+where
+    p.event_date > w.wm
+    and p.event_date <= {{ fs_date_offset_lit(0) }}
 group by p.safe_id

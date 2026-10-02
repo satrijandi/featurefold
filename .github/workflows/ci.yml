@@ -84,10 +84,12 @@ jobs:
 
       - name: The whole end-to-end gate
         # One target, so CI and a laptop take exactly the same path: lint, unit
-        # tests, fixture, backfill, a fortnight of increments with the revision
-        # window refreshed behind each one, every generated invariant, adapter
-        # conformance, brute-force recomputation on five dates, sketch accuracy,
-        # the operational scenarios, and a docs build.
+        # tests, dbt_project_evaluator over the project's structure, fixture,
+        # backfill, a fortnight of increments with the revision window refreshed
+        # behind each one, sqlfluff over both sides of every incremental branch,
+        # every generated invariant, source history tests, adapter conformance,
+        # brute-force recomputation on five dates, sketch accuracy, the
+        # operational scenarios, and a docs build.
         run: make -C showcase ci
 
       - name: No partition references events after its own as-of date
@@ -140,6 +142,10 @@ jobs:
           enable-cache: true
       - run: uv venv --python 3.11
       - run: uv pip install "apache-airflow==2.10.5" pendulum
+      # The DAG reads the registry through generator.registry, installed as the
+      # Airflow image installs it: without the compiler's dependencies, which
+      # also proves reading the contract does not need them.
+      - run: uv pip install --no-deps -e .
 
       - name: DAG parses and has no import errors
         run: |

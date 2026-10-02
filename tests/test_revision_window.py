@@ -57,3 +57,14 @@ def test_missing_accumulator_means_nothing_is_sealed():
 def test_a_spec_without_late_arrival_has_nothing_to_refresh():
     """late_arrival_days = 0 means a partition is final the day it is built."""
     assert refreshable_dates(date(2026, 9, 3), 0, None) == []
+
+
+def test_a_refresh_never_creates_history_before_the_first_partition():
+    """The day after an initial load at 2026-08-20, only that load is refreshable."""
+    dates = refreshable_dates(date(2026, 8, 21), LATE, date(2026, 8, 17), date(2026, 8, 20))
+    assert dates == [date(2026, 8, 20)]
+
+
+def test_an_established_mart_is_not_narrowed_by_its_first_partition():
+    dates = refreshable_dates(date(2026, 9, 3), LATE, date(2026, 8, 31), date(2026, 8, 20))
+    assert dates == [date(2026, 9, 2), date(2026, 9, 1), date(2026, 8, 31)]

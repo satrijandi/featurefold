@@ -1,0 +1,10 @@
+# ============================================================================
+# GENERATED FILE - DO NOT EDIT BY HAND
+#   One group per spec owner (created_by).
+#   Edit a spec and run `make generate`.
+# ============================================================================
+version: 2
+groups:
+- name: data_platform
+  owner:
+    name: data-platform

@@ -10,8 +10,7 @@ The plan distinguishes two kinds of output column:
 
   StoredFeature    folds up through the monoid from stored daily partials.
   ComputedFeature  is reconstructed in the mart from other columns, because its
-                   value moves with the as-of date (days_since) or because it
-                   is a ratio of two folds (avg).
+                   aggregation is a Composite (see generator/aggregates.py).
 
 A partial that exists only to feed a ComputedFeature is marked internal: it is
 carried through the intermediate models but never published to the mart.
@@ -23,8 +22,8 @@ import itertools
 from dataclasses import dataclass
 from dataclasses import field as dc_field
 
-from generator.aggregates import Aggregate, get_aggregate
-from generator.expr import Expr, macro
+from generator.aggregates import Aggregation, Composite, Monoid
+from generator.expr import Expr
 from generator.spec import AtomicField, FeatureSpec, SpecError, TimeWindow
 
 MAX_IDENTIFIER_LEN = 255
@@ -63,8 +62,7 @@ class PartialColumn:
     field: str
     combo: Combo
     value_sql: str
-    distinct_method: str
-    aggregate: Aggregate
+    aggregate: Monoid
     internal: bool = True
 
     @property
@@ -93,6 +91,10 @@ class StoredFeature:
     def combo(self) -> Combo:
         return self.partial.combo
 
+    @property
+    def aggregation(self) -> Aggregation:
+        return self.partial.aggregate
+
 
 @dataclass
 class ComputedFeature:
@@ -102,10 +104,13 @@ class ComputedFeature:
     expr: Expr
     inputs: tuple[str, ...]
     description: str
-    kind: str
-    agg_key: str
+    aggregation: Composite
     field: str
     combo: Combo
+
+    @property
+    def agg_key(self) -> str:
+        return self.aggregation.key
 
 
 @dataclass
@@ -193,6 +198,7 @@ def _describe(agg: str, field: str, combo: Combo, window: TimeWindow, convention
 
 def build_plan(spec: FeatureSpec) -> FeaturePlan:
     sep = spec.settings.separator
+    convention = spec.settings.window_convention
     plan = FeaturePlan(spec=spec)
     namer = _Namer(sep)
 
@@ -201,28 +207,25 @@ def build_plan(spec: FeatureSpec) -> FeaturePlan:
 
     def ensure_partial(
         field_name: str,
-        agg_key: str,
+        agg: Monoid,
         combo: Combo,
         dtype_source: str | None,
-        distinct_method: str,
         public: bool,
     ) -> PartialColumn:
-        name = _join(sep, "p", agg_key, field_name, combo.label)
+        name = _join(sep, "p", agg.key, field_name, combo.label)
         existing = partials.get(name)
         if existing is not None:
             if public:
                 existing.internal = False
             return existing
-        agg = get_aggregate(agg_key, distinct_method, kmv_k=spec.settings.kmv_k)
-        namer.claim(name, f"partial for {agg_key}({field_name}) [{combo.describe()}]")
+        namer.claim(name, f"partial for {agg.key}({field_name}) [{combo.describe()}]")
         col = PartialColumn(
             name=name,
             dtype=agg.partial_dtype(dtype_source),
-            agg_key=agg_key,
+            agg_key=agg.key,
             field=field_name,
             combo=combo,
             value_sql=field_name,
-            distinct_method=distinct_method,
             aggregate=agg,
             internal=not public,
         )
@@ -251,11 +254,7 @@ def build_plan(spec: FeatureSpec) -> FeaturePlan:
             window=window,
             dtype=partial.aggregate.feature_dtype(dtype_source),
             description=_describe(
-                partial.agg_key,
-                partial.field,
-                partial.combo,
-                window,
-                spec.settings.window_convention,
+                partial.agg_key, partial.field, partial.combo, window, convention
             ),
             internal=not public,
         )
@@ -268,109 +267,51 @@ def build_plan(spec: FeatureSpec) -> FeaturePlan:
     for field in spec.fields:
         combos = build_combos(spec, field, sep)
 
-        # ---- days_since derivations -----------------------------------------
-        # days_since is monotonically decreasing in event time, so its minimum
-        # over a window is the distance to the LATEST event and its maximum is
-        # the distance to the EARLIEST. Aggregating the underlying timestamp and
-        # flipping here keeps the partial layer independent of the as-of date,
-        # which is the whole reason partials can be reused across runs.
+        # A composite is folded from monoids over the field it is rebuilt from:
+        # the field itself for avg, the underlying timestamp for days_since.
         if field.is_derived:
-            base_name = field.derived.from_field
-            base_field = by_name.get(base_name)
-            base_dtype = base_field.field_type if base_field else "timestamp"
-            flip = {"min": "max", "max": "min"}
-            for agg_key in field.aggs:
-                base_agg = flip[agg_key]
-                for combo in combos:
-                    base_partial = ensure_partial(
-                        base_name, base_agg, combo, base_dtype, "exact", public=False
-                    )
-                    base_stored = ensure_stored(base_partial, spec.windows[0], base_dtype, False)
-                    for window in spec.windows:
-                        base_stored = ensure_stored(base_partial, window, base_dtype, False)
-                        name = namer.claim(
-                            _join(sep, agg_key, field.name, combo.label, window.name),
-                            f"{agg_key}({field.name}) derived [{combo.describe()}] {window.name}",
-                        )
-                        plan.computed.append(
-                            ComputedFeature(
-                                name=name,
-                                window=window,
-                                dtype="bigint",
-                                expr=macro(
-                                    "fs_datediff_day",
-                                    Expr.sql(base_stored.name),
-                                    Expr.jinja("fs_target_date()"),
-                                ),
-                                inputs=(base_stored.name,),
-                                description=_describe(
-                                    agg_key,
-                                    field.name,
-                                    combo,
-                                    window,
-                                    spec.settings.window_convention,
-                                )
-                                + f" (whole calendar days from {base_stored.name} to the as-of date)",
-                                kind="days_since",
-                                agg_key=agg_key,
-                                field=field.name,
-                                combo=combo,
-                            )
-                        )
-                        plan.output_order.append(name)
-            continue
+            source = field.derived.from_field
+            base_field = by_name.get(source)
+            source_dtype = base_field.field_type if base_field else "timestamp"
+        else:
+            source, source_dtype = field.name, field.field_type
 
-        # ---- ordinary and desugared aggregations ----------------------------
-        for agg_key in field.aggs:
+        for agg in field.aggregations(spec.settings.kmv_k):
             for combo in combos:
-                if agg_key == "avg":
-                    # avg is not a monoid on its own; carry sum and count and
-                    # divide at publish time.
-                    p_sum = ensure_partial(
-                        field.name, "sum", combo, field.field_type, "exact", public=False
-                    )
-                    p_cnt = ensure_partial(
-                        field.name, "count", combo, field.field_type, "exact", public=False
-                    )
+                if isinstance(agg, Monoid):
+                    partial = ensure_partial(field.name, agg, combo, field.field_type, public=True)
                     for window in spec.windows:
-                        s_sum = ensure_stored(p_sum, window, field.field_type, False)
-                        s_cnt = ensure_stored(p_cnt, window, field.field_type, False)
-                        name = namer.claim(
-                            _join(sep, "avg", field.name, combo.label, window.name),
-                            f"avg({field.name}) [{combo.describe()}] {window.name}",
-                        )
-                        plan.computed.append(
-                            ComputedFeature(
-                                name=name,
-                                window=window,
-                                dtype="double",
-                                expr=Expr.sql(
-                                    f"case when {s_cnt.name} = 0 then null "
-                                    f"else {s_sum.name} / cast({s_cnt.name} as double) end"
-                                ),
-                                inputs=(s_sum.name, s_cnt.name),
-                                description=_describe(
-                                    "avg",
-                                    field.name,
-                                    combo,
-                                    window,
-                                    spec.settings.window_convention,
-                                ),
-                                kind="avg",
-                                agg_key="avg",
-                                field=field.name,
-                                combo=combo,
-                            )
-                        )
-                        plan.output_order.append(name)
+                        feat = ensure_stored(partial, window, field.field_type, public=True)
+                        plan.output_order.append(feat.name)
                     continue
 
-                partial = ensure_partial(
-                    field.name, agg_key, combo, field.field_type, field.distinct_method, public=True
-                )
+                parts = [
+                    ensure_partial(source, part, combo, source_dtype, public=False)
+                    for part in agg.parts
+                ]
                 for window in spec.windows:
-                    feat = ensure_stored(partial, window, field.field_type, public=True)
-                    plan.output_order.append(feat.name)
+                    inputs = tuple(
+                        ensure_stored(p, window, source_dtype, public=False).name for p in parts
+                    )
+                    name = namer.claim(
+                        _join(sep, agg.key, field.name, combo.label, window.name),
+                        f"{agg.key}({field.name}) {agg.kind} [{combo.describe()}] {window.name}",
+                    )
+                    plan.computed.append(
+                        ComputedFeature(
+                            name=name,
+                            window=window,
+                            dtype=agg.feature_dtype(field.field_type),
+                            expr=agg.publish_expr(*(Expr.sql(i) for i in inputs)),
+                            inputs=inputs,
+                            description=_describe(agg.key, field.name, combo, window, convention)
+                            + agg.describe_suffix(inputs),
+                            aggregation=agg,
+                            field=field.name,
+                            combo=combo,
+                        )
+                    )
+                    plan.output_order.append(name)
 
     plan.warnings = namer.warnings  # type: ignore[attr-defined]
     return plan

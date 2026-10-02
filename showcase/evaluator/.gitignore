@@ -1,0 +1,2 @@
+# Installed by `dbt deps` from packages.yml, pinned by package-lock.yml.
+dbt_packages/

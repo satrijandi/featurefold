@@ -33,7 +33,9 @@ def test_unknown_condition_category_is_rejected(write_spec, base_spec):
 def test_unmapped_physical_relation_is_rejected(write_spec, base_spec):
     """A hard-coded relation resolves in one environment only, so it can never be tested."""
     bad = base_spec.replace(
-        "relations:\n  bronze.db.events:\n    source_name: bronze\n    table_name: events\n", ""
+        "relations:\n  bronze.db.events:\n    source_name: bronze\n    table_name: events\n"
+        "    loaded_at: _loaded_at\n",
+        "relations: {}\n",
     )
     with pytest.raises(SpecError, match="Hard-coded relations"):
         load_spec(write_spec(bad))
@@ -134,12 +136,6 @@ def test_unaliased_expression_is_rejected(write_spec, base_spec):
         load_spec(write_spec(base_spec.replace("    os_name,", "    upper(os_name),")))
 
 
-def test_all_time_requires_an_append_only_source(write_spec, base_spec):
-    bad = base_spec + "\nsettings:\n  source_is_append_only: false\n"
-    with pytest.raises(SpecError, match="only sound over an append-only source"):
-        load_spec(write_spec(bad))
-
-
 def test_non_daily_cadence_is_rejected(write_spec, base_spec):
     with pytest.raises(SpecError, match="not implemented"):
         load_spec(write_spec(base_spec.replace('feature_type: "daily"', 'feature_type: "hourly"')))
@@ -183,7 +179,7 @@ def test_unknown_relation_key_is_rejected(write_spec, base_spec):
         ("materialized_mart: banana", "settings.materialized_mart"),
         ("entity_spine: sometimes", "settings.entity_spine"),
         ("window_convention: centred", "settings.window_convention"),
-        ("source_is_append_only: 'yes'", "settings.source_is_append_only"),
+        ("timezone: Mars/Olympus_Mons", "settings.timezone"),
         # The separator is spliced into every generated column name.
         ("separator: '-'", "settings.separator"),
     ],
@@ -211,3 +207,115 @@ def test_spec_hash_tracks_content(write_spec, base_spec):
         write_spec(base_spec.replace('created_by: "test"', 'created_by: "other"'))
     ).spec_hash
     assert a != b
+
+
+def test_a_hand_written_as_of_filter_is_rejected(write_spec, base_spec):
+    """The generator owns the as-of read; a second definition would compete with it."""
+    bad = base_spec.replace(
+        "  WHERE customer_id IS NOT NULL",
+        "  WHERE customer_id IS NOT NULL AND _loaded_at <= '{{ target_date }}'::DATE",
+    )
+    with pytest.raises(SpecError, match="writes the as-of filter itself"):
+        load_spec(write_spec(bad))
+
+
+def test_a_join_is_rejected_as_not_point_in_time(write_spec, base_spec):
+    bad = (
+        base_spec.replace(
+            "  FROM bronze.db.events\n",
+            "  FROM bronze.db.events e JOIN bronze.db.devices d ON e.device_id = d.id\n",
+        )
+        + "  bronze.db.devices: {source_name: bronze, table_name: devices, loaded_at: _l}\n"
+    )
+    with pytest.raises(SpecError, match="not point-in-time"):
+        load_spec(write_spec(bad))
+
+
+def test_the_word_join_inside_a_literal_is_not_a_join(write_spec, base_spec):
+    ok = base_spec.replace("- is_ios: \"UPPER(os_name) = 'IOS'\"", "- is_ios: \"os_name = 'join'\"")
+    load_spec(write_spec(ok))
+
+
+def test_reading_a_second_relation_is_rejected(write_spec, base_spec):
+    bad = (
+        base_spec.replace(
+            "  WHERE customer_id IS NOT NULL",
+            "  WHERE customer_id NOT IN (SELECT id FROM bronze.db.blocklist)",
+        )
+        + "  bronze.db.blocklist: {source_name: bronze, table_name: blocklist, loaded_at: _l}\n"
+    )
+    with pytest.raises(SpecError, match="exactly one mapped relation"):
+        load_spec(write_spec(bad))
+
+
+def test_a_relation_must_say_when_its_rows_became_visible(write_spec, base_spec):
+    bad = base_spec.replace("    loaded_at: _loaded_at\n", "")
+    with pytest.raises(SpecError, match=r"relations\.bronze\.db\.events\.loaded_at: required"):
+        load_spec(write_spec(bad))
+
+
+def test_a_relation_time_zone_must_exist(write_spec, base_spec):
+    bad = base_spec.replace(
+        "    loaded_at: _loaded_at\n", "    loaded_at: _l\n    timezone: UTC+7\n"
+    )
+    with pytest.raises(SpecError, match="not an IANA time zone"):
+        load_spec(write_spec(bad))
+
+
+def test_reserved_column_names_are_rejected(write_spec, base_spec):
+    bad = base_spec.replace("    os_name,", "    os_name AS _fs_loaded_at,")
+    with pytest.raises(SpecError, match="reserve for themselves"):
+        load_spec(write_spec(bad))
+
+
+def test_entity_keys_can_be_typed(write_spec, base_spec):
+    spec = load_spec(
+        write_spec(base_spec.replace('entities: ["safe_id"]', "entities: [{safe_id: bigint}]"))
+    )
+    assert spec.entities == ("safe_id",)
+    assert spec.entity_types == {"safe_id": "bigint"}
+
+
+def test_an_untyped_entity_key_is_a_string(write_spec):
+    assert load_spec(write_spec()).entity_types == {"safe_id": "varchar"}
+
+
+def test_an_unknown_entity_type_is_rejected(write_spec, base_spec):
+    bad = base_spec.replace('entities: ["safe_id"]', "entities: [{safe_id: uuidish}]")
+    with pytest.raises(SpecError, match="not recognised"):
+        load_spec(write_spec(bad))
+
+
+def test_an_exposure_needs_an_owner(write_spec, base_spec):
+    bad = base_spec + "exposures:\n  - {name: churn, type: ml, owner: {}}\n"
+    with pytest.raises(SpecError, match="owner needs a name or an email"):
+        load_spec(write_spec(bad))
+
+
+def test_state_version_ignores_what_cannot_change_stored_state(write_spec, base_spec):
+    a = load_spec(write_spec(base_spec))
+    b = load_spec(
+        write_spec(
+            base_spec.replace('created_by: "test"', 'created_by: "other"').replace(
+                '["l7d", "all_time"]', '["l7d", "l30d", "all_time"]'
+            )
+            + "settings:\n  late_arrival_days: 5\n  entity_spine: active_window\n"
+        )
+    )
+    assert a.spec_hash != b.spec_hash
+    assert a.state_version == b.state_version
+
+
+@pytest.mark.parametrize(
+    ("old", "new"),
+    [
+        ("\"UPPER(os_name) = 'IOS'\"", "\"UPPER(os_name) = 'IPADOS'\""),
+        ("  WHERE customer_id IS NOT NULL", "  WHERE customer_id <> ''"),
+        ("    loaded_at: _loaded_at\n", "    loaded_at: _ingested_at\n"),
+        ("time_cat:", "settings:\n  timezone: Asia/Jakarta\ntime_cat:"),
+    ],
+)
+def test_state_version_tracks_what_stored_state_means(write_spec, base_spec, old, new):
+    assert old in base_spec
+    a = load_spec(write_spec(base_spec)).state_version
+    assert load_spec(write_spec(base_spec.replace(old, new))).state_version != a

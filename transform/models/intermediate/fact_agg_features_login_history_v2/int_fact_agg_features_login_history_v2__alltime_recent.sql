@@ -4,7 +4,7 @@
 --   layer      : intermediate / all_time unsealed tail
 --   feature    : fact_agg_features_login_history_v2
 --   spec       : features/fact_agg_features_login_history_v2.yml
---   spec hash  : 6c9b3cc88a21
+--   spec hash  : a7a086250bfc
 --   generator  : featuremart
 --
 -- Edit the spec and run `make generate`. CI fails when a generated file
@@ -140,10 +140,12 @@ select
     max(p.p_max_event_timestamp_is_login_failed_is_android) as p_max_event_timestamp_is_login_failed_is_android,
     max(p.p_max_event_timestamp_is_login_failed_is_others) as p_max_event_timestamp_is_login_failed_is_others,
 
-    min(p.event_date) as _min_event_date,
-    max(p.event_date) as _max_event_date
-from {{ ref('int_fact_agg_features_login_history_v2__daily_partials') }} p
-cross join watermark w
-where p.event_date > w.wm
-  and p.event_date <= {{ fs_date_offset_lit(0) }}
+    sum(p._n_rows) as _n_rows,
+    min(case when p._n_rows > 0 then p.event_date end) as _min_event_date,
+    max(case when p._n_rows > 0 then p.event_date end) as _max_event_date
+from {{ ref('int_fact_agg_features_login_history_v2__daily_partials') }} as p
+cross join watermark as w
+where
+    p.event_date > w.wm
+    and p.event_date <= {{ fs_date_offset_lit(0) }}
 group by p.safe_id

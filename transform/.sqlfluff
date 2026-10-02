@@ -1,0 +1,26 @@
+# SQL style for the generated project and the hand-written runtime beside it.
+# Run it with `make -C showcase sqllint`, which supplies the profile and lints
+# twice: against an empty warehouse, so the first-build branches render, and
+# against a built one, so the `is_incremental()` branches do.
+
+[sqlfluff]
+templater = dbt
+# The adapter the showcase runs. The generated SQL is meant to read the same
+# on every warehouse; dialect differences live in macros/adapters/.
+dialect = duckdb
+# Lint every generated file, however wide the mart gets.
+large_file_skip_byte_limit = 0
+# LT05 (line length) is off on purpose. Generated models put one feature per
+# line, so a pull request shows each added or removed feature as exactly one
+# line of diff. Feature names alone can run past 100 characters, and wrapping
+# them would trade that reviewability for a line-length number.
+exclude_rules = LT05
+
+[sqlfluff:indentation]
+# A `{% if is_incremental() %}` block is control flow around SQL, not a level
+# of SQL nesting, so it does not indent what it wraps.
+template_blocks_indent = false
+
+[sqlfluff:templater:dbt:context]
+# Any as-of date compiles to the same SQL shape.
+target_date = 2026-09-03

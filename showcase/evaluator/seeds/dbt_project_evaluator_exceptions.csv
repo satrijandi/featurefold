@@ -1,0 +1,3 @@
+fct_name,column_name,id_to_exclude,comment
+fct_rejoining_of_upstream_concepts,parent,int_%__alltime_state,"By design: the unsealed tail reads the accumulator only for its watermark, so sealed and unsealed days are complementary by construction, and the mart merges the two. Folding the tail into the accumulator would make all_time stale by the late-arrival window."
+fct_missing_primary_key_tests,resource_name,int_%__events,"Every row version of the source through one spec's projection. The projection need not carry the source's row key; the staging model below it is where that key is tested, together with the versions' intervals."

@@ -5,10 +5,10 @@ only acceptable if the error is actually bounded, so this measures it rather
 than asserting it: every approximate feature is compared to a straight
 count(distinct ...) over the raw source.
 
-Ground truth uses the same as-of-EVENT semantics and ingestion horizon as
-tools/verify_against_bruteforce.py -- see that file for why. Filtering on
-ingestion instead would compare the sketch against knowledge the pipeline was
-never offered and report the difference as sketch error.
+Ground truth is the same oracle reading of the source as
+tools/verify_against_bruteforce.py uses (tools/oracle.py). Comparing against
+knowledge the pipeline was never offered would report the difference as sketch
+error.
 
 Two properties are checked.
   1. Below k distinct values the sketch retains every hash, so the estimate
@@ -22,36 +22,27 @@ from __future__ import annotations
 
 import math
 import sys
-from datetime import date, timedelta
 
 import duckdb
+from generator.registry import Registry
 
-from tools.paths import DB
+from tools import oracle
+from tools.paths import DB, REGISTRY_DIR
 
 TARGET = sys.argv[1] if len(sys.argv) > 1 else "2026-09-03"
-K = 64  # settings.kmv_k in features/fact_agg_features_login_device_v1.yml
-LATE_ARRIVAL_DAYS = 3
+FEATURE = "fact_agg_features_login_device_v1"  # the spec that exercises the sketch
 
 
 def main() -> int:
+    registry = Registry.load(REGISTRY_DIR / f"{FEATURE}.json")
+    k = registry.kmv_k
+    mart = f"marts.{registry.models.mart}"
     con = duckdb.connect(str(DB), read_only=True)
 
-    frontier = con.execute(
-        "select max(target_date) from marts.fact_agg_features_login_device_v1"
-    ).fetchone()[0]
-    settled = date.fromisoformat(TARGET) + timedelta(days=LATE_ARRIVAL_DAYS)
-    horizon = min(settled, frontier)
+    horizon = oracle.horizon(con, registry, TARGET)
 
     rows = con.execute(f"""
-        with src as (
-            select customer_id as safe_id, event_id, event_status,
-                   cast(event_timestamp as date) as event_date
-            from bronze_events.customer_login
-            where cast(event_timestamp as date) <= date '{TARGET}'
-              and _scd_valid_from <= date '{horizon}'
-              and date '{TARGET}' < _scd_valid_to
-              and customer_id is not null
-        ),
+        with src as ({oracle.events_as_of(registry, TARGET, horizon)}),
         exact as (
             select safe_id,
                 count(distinct case when event_date >= date '{TARGET}' - 6
@@ -66,7 +57,7 @@ def main() -> int:
                    count_distinct_event_id_l7d      as l7d,
                    count_distinct_event_id_l30d     as l30d,
                    count_distinct_event_id_all_time as all_time
-            from marts.fact_agg_features_login_device_v1
+            from {mart}
             where target_date = date '{TARGET}'
         )
         select e.safe_id, w.win, w.exact_v, w.approx_v
@@ -78,16 +69,16 @@ def main() -> int:
     """).fetchall()
     con.close()
 
-    below = [(s, w, e, a) for s, w, e, a in rows if e < K]
-    at_or_above = [(s, w, e, a) for s, w, e, a in rows if e >= K]
+    below = [(s, w, e, a) for s, w, e, a in rows if e < k]
+    at_or_above = [(s, w, e, a) for s, w, e, a in rows if e >= k]
 
     exact_failures = [r for r in below if r[2] != r[3]]
     errors = [abs(a - e) / e for _, _, e, a in at_or_above] if at_or_above else []
 
-    bound = 1.0 / math.sqrt(K)
+    bound = 1.0 / math.sqrt(k)
     print(f"as-of date              : {TARGET}")
     print(f"ingestion horizon       : {horizon}")
-    print(f"sketch k                : {K}   (theoretical std error ~{bound:.1%})")
+    print(f"sketch k                : {k}   (theoretical std error ~{bound:.1%})")
     print(f"comparisons             : {len(rows)}")
     print(f"  below k (must be exact): {len(below)}")
     print(f"  at/above k (estimated) : {len(at_or_above)}")

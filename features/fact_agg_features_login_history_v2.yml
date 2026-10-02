@@ -22,9 +22,7 @@ source: |
     os_name,
     event_status
   FROM bronze.events.customer_login
-  WHERE
-    ('{{ target_date }}'::DATE >= _scd_valid_from AND '{{ target_date }}'::DATE < _scd_valid_to)
-    AND customer_id IS NOT NULL
+  WHERE customer_id IS NOT NULL
 
 entities: ["safe_id"]
 timestamp_col: "event_timestamp"
@@ -88,6 +86,17 @@ relations:
   bronze.events.customer_login:
     source_name: bronze_events
     table_name: customer_login
+    # The journal is SCD2: a correction closes the old row version and opens a
+    # new one, and a deletion closes it without a successor. The generator
+    # reads every as-of date through these two columns, and uses them to find
+    # the days whose content changed since the last run, however old.
+    loaded_at: _scd_valid_from
+    superseded_at: _scd_valid_to
+    # The journal's naive timestamps are UTC wall-clock.
+    timezone: UTC
+    # A login keeps its event_id across corrections, so the staging model can
+    # test that no two versions of one login are ever current at once.
+    key: [event_id]
 
 # ==============================================================================
 # 6. Settings
@@ -99,3 +108,29 @@ settings:
   # a dormant entity has no snapshot rather than a snapshot of zeros, so a
   # training-set join must decide explicitly how to treat one.
   entity_spine: active_window
+
+  # The business day. Event dates, the late_night / office_hours buckets and the
+  # end of each as-of day are all read on Jakarta's clock, whatever zone the
+  # source records in and whatever the warehouse session is set to.
+  timezone: Asia/Jakarta
+
+# ==============================================================================
+# 7. Consumers
+# ==============================================================================
+# Who reads the published mart. Each becomes a dbt exposure, so lineage runs
+# from the bronze journal all the way to the things that would break.
+exposures:
+  - name: login_offline_store
+    type: application
+    owner: {name: data-platform}
+    description: |
+      Parquet offline store on S3, one partition per as-of date, written by
+      showcase/tools/publish_offline_store.py after every daily run.
+    maturity: medium
+  - name: login_feature_validation
+    type: notebook
+    owner: {name: data-platform}
+    description: |
+      Validation notebook that reads the offline store the way a training
+      pipeline would. showcase/notebooks/01_validate_feature_store.ipynb.
+    maturity: low

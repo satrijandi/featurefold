@@ -1,0 +1,48 @@
+# =============================================================================
+# Structural lint for the generated dbt project, with dbt-labs'
+# dbt_project_evaluator: naming, layering, directory layout, documentation,
+# test coverage, primary keys, exposures and access.
+#
+# It lives here, as a tiny wrapper that installs ../../transform as a local
+# package, rather than in the generated project itself. The generated project
+# stays package-free, so it builds offline and a production deployment never
+# installs a lint tool; this one needs `dbt deps`, which needs the network.
+#
+# Run it with `make -C showcase evaluate`. Every finding fails the build: the
+# evaluator's tests are raised from warn to error below, and the few deliberate
+# departures are listed, with their reasons, in seeds/.
+# =============================================================================
+name: "feature_mart_evaluator"
+version: "0.1.0"
+config-version: 2
+profile: "feature_mart"
+
+seed-paths: ["seeds"]
+
+vars:
+  # Spec authors name their marts; `fact_` is this project's mart prefix
+  # alongside the dbt defaults.
+  marts_prefixes: ["fct_", "dim_", "fact_"]
+  # The generated project tests composite keys with its own offline macro
+  # rather than dbt_utils, so the evaluator is told it counts as a key test.
+  primary_key_test_macros:
+    - ["dbt.test_unique", "dbt.test_not_null"]
+    - ["dbt_utils.test_unique_combination_of_columns"]
+    - ["feature_mart.test_fs_unique_combination"]
+
+seeds:
+  dbt_project_evaluator:
+    # Replaced by seeds/dbt_project_evaluator_exceptions.csv: the deliberate
+    # departures from the evaluator's rules, each with the reason it is right
+    # here. Matched with LIKE, so one row covers that model in every spec.
+    dbt_project_evaluator_exceptions:
+      +enabled: false
+
+data_tests:
+  dbt_project_evaluator:
+    +severity: error
+
+flags:
+  # The evaluator resolves its exceptions seed by name; with this, it looks in
+  # its own package first and, finding that one disabled, takes ours.
+  require_ref_searches_node_package_before_root: true

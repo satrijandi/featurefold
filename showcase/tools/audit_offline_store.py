@@ -20,13 +20,14 @@ version mismatch is treated as a contract violation rather than as metadata.
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import subprocess
 from pathlib import Path
 
 import duckdb
+from generator.registry import Registry
 
+from tools.object_store import ObjectStore
 from tools.paths import DB as DEFAULT_DB
 from tools.paths import PYTHON, REGISTRY_DIR, SHOWCASE
 
@@ -35,37 +36,19 @@ def delete_prefix(bucket: str, prefix: str) -> int:
     """Delete every object under a prefix. Used only for partitions the warehouse
     can no longer reproduce, which are therefore unrecoverable test residue or
     the remains of a deleted spec."""
-    import boto3
-
-    s3 = boto3.client(
-        "s3",
-        endpoint_url=f"http://{os.getenv('S3_ENDPOINT', 'localhost:8433')}",
-        aws_access_key_id=os.getenv("S3_ACCESS_KEY", "featuremart"),
-        aws_secret_access_key=os.getenv("S3_SECRET_KEY", "featuremart"),
-        region_name="us-east-1",
-    )
+    s3 = ObjectStore.from_env().boto3_client()
     listed = s3.list_objects_v2(Bucket=bucket, Prefix=prefix).get("Contents", [])
     for obj in listed:
         s3.delete_object(Bucket=bucket, Key=obj["Key"])
     return len(listed)
 
 
-def connect_s3() -> duckdb.DuckDBPyConnection:
-    con = duckdb.connect()
-    con.execute("install httpfs; load httpfs;")
-    con.execute(f"set s3_endpoint='{os.getenv('S3_ENDPOINT', 'localhost:8433')}'")
-    con.execute(f"set s3_access_key_id='{os.getenv('S3_ACCESS_KEY', 'featuremart')}'")
-    con.execute(f"set s3_secret_access_key='{os.getenv('S3_SECRET_KEY', 'featuremart')}'")
-    con.execute("set s3_use_ssl=false; set s3_url_style='path'; set s3_region='us-east-1'")
-    return con
-
-
 def audit(feature_name: str, bucket: str, db: Path, fix: bool, prune: bool) -> int:
-    registry = json.loads((REGISTRY_DIR / f"{feature_name}.json").read_text())
-    expected_spec = registry["spec_version"]
+    registry = Registry.load(REGISTRY_DIR / f"{feature_name}.json")
+    expected_spec = registry.spec_version
     base = f"s3://{bucket}/feature_store/{feature_name}"
 
-    con = connect_s3()
+    con = ObjectStore.from_env().configure(duckdb.connect())
     con.execute(
         f"create or replace view store as "
         f"select * from read_parquet('{base}/*/*.parquet', hive_partitioning=true)"
@@ -113,7 +96,9 @@ def audit(feature_name: str, bucket: str, db: Path, fix: bool, prune: bool) -> i
     wh = duckdb.connect(str(db), read_only=True)
     available = {
         r[0]
-        for r in wh.execute(f"select distinct target_date from marts.{feature_name}").fetchall()
+        for r in wh.execute(
+            f"select distinct target_date from marts.{registry.models.mart}"
+        ).fetchall()
     }
     wh.close()
 
@@ -157,7 +142,9 @@ def main() -> int:
     a = ap.parse_args()
 
     names = (
-        [a.feature_name] if a.feature_name else sorted(p.stem for p in REGISTRY_DIR.glob("*.json"))
+        [a.feature_name]
+        if a.feature_name
+        else [r.feature_name for r in Registry.load_dir(REGISTRY_DIR)]
     )
     rc = 0
     for i, name in enumerate(names):

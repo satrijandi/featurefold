@@ -68,6 +68,59 @@ def test_counts_are_zero_filled_but_extrema_are_not():
     assert not get_aggregate("max").zero_filled
 
 
+@pytest.mark.parametrize(
+    ("agg", "order", "bound"),
+    [
+        (get_aggregate("count"), 1, None),
+        (get_aggregate("sum"), 0, None),
+        (get_aggregate("min"), -1, "max"),
+        (get_aggregate("max"), 1, None),
+        (get_aggregate("avg"), 0, None),
+        (get_aggregate("count_distinct", "exact"), 1, "count"),
+        (get_aggregate("count_distinct", "approx"), 1, None),
+        (get_aggregate("min", days_since=True), -1, "max"),
+        (get_aggregate("max", days_since=True), 1, None),
+    ],
+    ids=lambda v: getattr(v, "key", v),
+)
+def test_each_aggregation_declares_how_it_moves_and_what_bounds_it(agg, order, bound):
+    """These two facts are exactly what the generated invariant tests assert."""
+    assert agg.rows_order == order
+    assert agg.bounded_by == bound
+
+
+def test_avg_is_a_ratio_of_two_monoids():
+    avg = get_aggregate("avg")
+    assert [p.key for p in avg.parts] == ["sum", "count"]
+    assert avg.nullable
+    assert (
+        avg.publish_expr(Expr.sql("s"), Expr.sql("n")).render()
+        == "case when n = 0 then null else s / cast(n as double) end"
+    )
+
+
+def test_days_since_flips_the_timestamp_fold():
+    """min(days since) is the distance to the LATEST event."""
+    assert [p.key for p in get_aggregate("min", days_since=True).parts] == ["max"]
+    assert [p.key for p in get_aggregate("max", days_since=True).parts] == ["min"]
+    with pytest.raises(KeyError):
+        get_aggregate("count", days_since=True)
+
+
+@pytest.mark.parametrize(
+    ("key", "dtype", "reason"),
+    [
+        ("count", None, None),
+        ("min", None, "needs a declared type"),
+        ("min", "timestamp", None),
+        ("sum", "timestamp", "needs a numeric field"),
+        ("avg", "bigint", None),
+    ],
+)
+def test_aggregation_says_which_field_types_it_accepts(key, dtype, reason):
+    assert get_aggregate(key).accepts(dtype) == reason
+
+
 def test_unknown_aggregate_is_rejected():
     with pytest.raises(KeyError):
         get_aggregate("median")

@@ -1,0 +1,33 @@
+# ============================================================================
+# GENERATED FILE - DO NOT EDIT BY HAND
+#   Merged from every feature spec that reads this source.
+#   Edit a spec and run `make generate`.
+# ============================================================================
+version: 2
+models:
+- name: stg_bronze_events__customer_login
+  description: Every row version of bronze_events.customer_login, with its knowledge-time columns normalised
+    to UTC under fixed names.
+  data_tests:
+  - fs_ordered_interval:
+      arguments:
+        start: _fs_loaded_at
+        end: _fs_superseded_at
+  - fs_unique_combination:
+      arguments:
+        combination_of_columns:
+        - event_id
+        - _fs_loaded_at
+  - fs_no_overlapping_versions:
+      arguments:
+        key:
+        - event_id
+        start: _fs_loaded_at
+        end: _fs_superseded_at
+  columns:
+  - name: _fs_loaded_at
+    description: When this row version became visible, in UTC.
+    data_tests:
+    - not_null
+  - name: _fs_superseded_at
+    description: When it was replaced or deleted, in UTC; NULL if never.

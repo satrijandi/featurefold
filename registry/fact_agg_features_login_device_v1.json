@@ -1,33 +1,43 @@
 {
   "feature_name": "fact_agg_features_login_device_v1",
-  "spec_version": "01ce520f1167",
+  "spec_version": "e1ebed8aec82",
+  "state_version": "9622ded3d8a1",
   "feature_type": "daily",
   "owner": "data-platform",
+  "group": "data_platform",
   "description": "Device and session diversity features off the same login journal.\nExists mainly to exercise the approximate distinct-count path: event_id has\none value per event, so its per-customer cardinality grows without bound and\nretaining the full key set would not scale.",
   "generated_at": "generated-on-demand",
   "generator_version": "0.1.0",
   "entities": [
     "safe_id"
   ],
+  "entity_types": {
+    "safe_id": "varchar"
+  },
   "timestamp_col": "event_timestamp",
   "sources": [
     {
       "literal": "bronze.events.customer_login",
       "dbt_source": "bronze_events",
-      "dbt_table": "customer_login"
+      "dbt_table": "customer_login",
+      "loaded_at": "_scd_valid_from",
+      "superseded_at": "_scd_valid_to",
+      "timezone": "UTC"
     }
   ],
+  "exposures": [],
   "settings": {
     "window_convention": "inclusive",
     "entity_spine": "all_time",
     "late_arrival_days": 3,
     "kmv_k": 64,
     "separator": "_",
-    "source_is_append_only": true,
-    "materialized_mart": "incremental"
+    "materialized_mart": "incremental",
+    "timezone": "UTC"
   },
   "models": {
-    "staging": "stg_fact_agg_features_login_device_v1",
+    "staging": "stg_bronze_events__customer_login",
+    "events": "int_fact_agg_features_login_device_v1__events",
     "daily_partials": "int_fact_agg_features_login_device_v1__daily_partials",
     "window_rollup": "int_fact_agg_features_login_device_v1__window_rollup",
     "alltime_state": "int_fact_agg_features_login_device_v1__alltime_state",

@@ -1,0 +1,10 @@
+packages:
+  - local: ../../transform
+    name: feature_mart
+  - name: dbt_project_evaluator
+    package: dbt-labs/dbt_project_evaluator
+    version: 1.4.0
+  - name: dbt_utils
+    package: dbt-labs/dbt_utils
+    version: 1.4.1
+sha1_hash: c20a85e06ca300a76289062be3a1bced550eb014

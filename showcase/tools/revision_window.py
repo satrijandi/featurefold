@@ -7,6 +7,7 @@ runs them. What lives here is the deployment-specific half of it:
 
     late_arrival_days   read from the committed registry for the feature
     watermark W         read from the accumulator table in the warehouse
+    first served        the oldest partition the mart holds, also from the warehouse
 
 Emitting the dates here, rather than computing them in the DAG, keeps one
 resolver behind both `make dbt-revise` and the DAG's refresh task, so the dates
@@ -16,12 +17,11 @@ a run refreshes and the dates it publishes cannot drift apart.
 from __future__ import annotations
 
 import argparse
-import json
 from datetime import date
 from pathlib import Path
 
 import duckdb
-from generator.revision import refreshable_dates as _rule
+from generator.registry import Registry
 
 from tools.paths import DB, REGISTRY_DIR
 
@@ -40,12 +40,23 @@ def read_watermark(state_model: str, db: Path) -> date | None:
         con.close()
 
 
+def read_first_served(mart: str, db: Path) -> date | None:
+    """The oldest as-of date the mart holds, or None if it has never been built."""
+    con = duckdb.connect(str(db), read_only=True)
+    try:
+        return con.execute(f"select min(target_date) from marts.{mart}").fetchone()[0]
+    except duckdb.Error:
+        return None
+    finally:
+        con.close()
+
+
 def refreshable_dates(feature_name: str, target: date, db: Path) -> list[date]:
-    registry = json.loads((REGISTRY_DIR / f"{feature_name}.json").read_text())
-    late = int(registry["settings"]["late_arrival_days"])
-    state_model = registry["models"].get("alltime_state")
+    registry = Registry.load(REGISTRY_DIR / f"{feature_name}.json")
+    state_model = registry.models.alltime_state
     watermark = read_watermark(state_model, db) if state_model else None
-    return _rule(target, late, watermark)
+    first_served = read_first_served(registry.models.mart, db)
+    return registry.refreshable_dates(target, watermark, first_served)
 
 
 def main() -> int:

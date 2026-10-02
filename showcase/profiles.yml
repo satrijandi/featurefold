@@ -26,9 +26,11 @@ feature_mart:
       threads: 4
       extensions: ["httpfs"]
       settings:
-        s3_endpoint: "{{ env_var('S3_ENDPOINT', 'localhost:8333') }}"
-        s3_access_key_id: "{{ env_var('S3_ACCESS_KEY', 'featuremart') }}"
-        s3_secret_access_key: "{{ env_var('S3_SECRET_KEY', 'featuremart') }}"
+        # No defaults: credentials come from the environment only. See
+        # tools/object_store.py for where each runner gets them.
+        s3_endpoint: "{{ env_var('S3_ENDPOINT') }}"
+        s3_access_key_id: "{{ env_var('S3_ACCESS_KEY') }}"
+        s3_secret_access_key: "{{ env_var('S3_SECRET_KEY') }}"
         s3_use_ssl: false
         s3_url_style: "path"
         s3_region: "us-east-1"

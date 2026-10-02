@@ -11,7 +11,7 @@ models.
 
 | File | Shows |
 |---|---|
-| `minimal.yml` | the six required keys, and nothing else |
+| `minimal.yml` | the required keys, and nothing else: including `relations` with its `loaded_at` |
 | `all_aggregations.yml` | count, sum, min, max, count_distinct, avg together |
 | `composite_entity.yml` | a multi-column entity key |
-| `every_optional_key.yml` | conditions, settings, both distinct methods, an explicit derivation |
+| `every_optional_key.yml` | conditions, every setting including the business `timezone`, typed entities, a versioned source with its row `key`, both distinct methods, an explicit derivation, exposures |

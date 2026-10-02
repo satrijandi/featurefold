@@ -35,6 +35,7 @@ relations:
   bronze.db.events:
     source_name: bronze
     table_name: events
+    loaded_at: _loaded_at
 """
 
 

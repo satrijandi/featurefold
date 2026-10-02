@@ -97,7 +97,7 @@ atomic_field:
       agg: ['min']
       field_type: numeric
 relations:
-  bronze.db.events: {source_name: bronze, table_name: events}
+  bronze.db.events: {source_name: bronze, table_name: events, loaded_at: _loaded_at}
 """
     p = tmp_path / "s.yml"
     p.write_text(spec_yaml)
@@ -135,7 +135,7 @@ atomic_field:
       apply_cond_cat: [c]
       agg: ['count']
 relations:
-  bronze.db.events: {{source_name: bronze, table_name: events}}
+  bronze.db.events: {{source_name: bronze, table_name: events, loaded_at: _loaded_at}}
 """
     p = tmp_path / "s.yml"
     p.write_text(spec_yaml)

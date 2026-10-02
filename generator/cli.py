@@ -8,7 +8,7 @@ from pathlib import Path
 import click
 
 from generator.expand import build_plan
-from generator.project import render_sources_yml
+from generator.project import render_project
 from generator.registry import write_registry
 from generator.render import Renderer
 from generator.spec import SpecError, load_spec
@@ -77,26 +77,32 @@ def generate(specs_dir: Path, dbt_root: Path, registry_dir: Path, check: bool) -
             f"from {len(plan.partials)} partial columns"
         )
 
-    # Sources are project-wide: two specs may read the same table, and dbt
-    # allows exactly one definition of each source.
-    planned.append((dbt_root / "models" / "staging" / "_sources.yml", render_sources_yml(loaded)))
+    # Sources, their staging models and the owner groups are project-wide: two
+    # specs may read the same table or share an owner, and dbt allows exactly
+    # one definition of each.
+    try:
+        planned += render_project(loaded, dbt_root)
+    except SpecError as exc:
+        raise click.ClickException(str(exc)) from None
 
-    if check:
-        drifted = []
-        for path, content in planned:
-            if not path.exists() or path.read_text() != content:
-                drifted.append(path)
-        # A generated file with no spec behind it is drift too: it means a spec
-        # was deleted or renamed and stale models were left behind.
-        expected = {p for p, _ in planned}
+    # A generated file with no spec behind it is drift too: it means a spec was
+    # deleted or renamed, and stale models were left behind to keep running.
+    expected = {p for p, _ in planned}
+    orphans = [
+        found
         for folder, pattern in (
             (dbt_root / "models", "**/*.sql"),
-            (dbt_root / "models", "**/_*__*.yml"),
+            (dbt_root / "models", "**/*.yml"),
+            (dbt_root / "tests", "*.sql"),
             (registry_dir, "*.json"),
-        ):
-            for found in folder.glob(pattern):
-                if found not in expected and "GENERATED FILE" in found.read_text():
-                    drifted.append(found)
+        )
+        for found in folder.glob(pattern)
+        if found not in expected and "GENERATED FILE" in found.read_text()
+    ]
+
+    if check:
+        drifted = [p for p, content in planned if not p.exists() or p.read_text() != content]
+        drifted += orphans
         if drifted:
             click.secho("\ngenerated output is out of date:", fg="red", bold=True)
             for p in sorted(set(drifted)):
@@ -109,6 +115,9 @@ def generate(specs_dir: Path, dbt_root: Path, registry_dir: Path, check: bool) -
     for path, content in planned:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content)
+    for path in orphans:
+        path.unlink()
+        click.echo(f"  removed {path} (no spec generates it any more)")
     click.secho(
         f"\nwrote {len(planned)} files across {len(specs)} spec(s), "
         f"{total_features} features total",

@@ -23,4 +23,4 @@ atomic_field:
       agg: ['min', 'max']
       field_type: timestamp
 relations:
-  bronze.db.txn: {source_name: bronze, table_name: txn}
+  bronze.db.txn: {source_name: bronze, table_name: txn, loaded_at: _loaded_at}

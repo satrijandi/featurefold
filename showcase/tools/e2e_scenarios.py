@@ -39,6 +39,12 @@ one corresponds to a bug this pipeline previously had:
              it came back, which is the failure this setting could plausibly
              introduce.
 
+  CORRECTION The source is SCD2, so a row version can be corrected or deleted
+             upstream long after its day was sealed, and an event can arrive
+             far later than the late-arrival window. Each must reach both the
+             bounded windows and all_time, and an entity left with no events
+             must stop being published.
+
 Each scenario is checked against an independent brute-force recomputation, so
 "passed" means the numbers are right, not merely that dbt exited zero. Every
 date is derived from the warehouse's current frontier, so the scenarios test the
@@ -47,18 +53,24 @@ property rather than a state left behind by an earlier session.
 
 from __future__ import annotations
 
-import json
 import subprocess
 import sys
 from datetime import date, timedelta
 
 import duckdb
+from generator.registry import Registry
 
+from tools import oracle
 from tools.paths import DB, DBT, PYTHON, REGISTRY_DIR, SHOWCASE, dbt_env
 
-MART = "marts.fact_agg_features_login_history_v2"
-STATE = "intermediate.int_fact_agg_features_login_history_v2__alltime_state"
-PARTIALS_MODEL = "int_fact_agg_features_login_history_v2__daily_partials"
+# The scenarios below drive this spec; every name and setting comes from its registry.
+FEATURE = "fact_agg_features_login_history_v2"
+REGISTRY = Registry.load(REGISTRY_DIR / f"{FEATURE}.json")
+MART = f"marts.{REGISTRY.models.mart}"
+STATE_MODEL = REGISTRY.models.alltime_state
+STATE = f"intermediate.{STATE_MODEL}"
+PARTIALS_MODEL = REGISTRY.models.daily_partials
+WATERMARK_GUARD = f"assert_{FEATURE}_state_watermark"
 PARTIALS_TABLE = f"intermediate.{PARTIALS_MODEL}"
 
 
@@ -118,7 +130,7 @@ def fingerprint(day: str) -> tuple[int, str]:
         for r in query(
             "select column_name from information_schema.columns "
             "where table_schema = 'marts' "
-            "and table_name = 'fact_agg_features_login_history_v2' "
+            f"and table_name = '{REGISTRY.models.mart}' "
             "and column_name <> '_generated_at'"
         )
     ]
@@ -183,7 +195,7 @@ def main() -> int:
     # Anchored inside the data: the accumulator seals at T - late_arrival_days,
     # so to observe it crossing a skipped day the range it consumes has to
     # contain events. Reset it to a date far enough back that it does.
-    late = 3
+    late = REGISTRY.late_arrival_days
     last_event = last_event_date()
     base = shift(last_event, -(late + 3))
     skipped, jump = shift(base, 1), shift(base, 3)
@@ -193,7 +205,7 @@ def main() -> int:
         "run",
         "--full-refresh",
         "--select",
-        "int_fact_agg_features_login_history_v2__alltime_state",
+        STATE_MODEL,
         target_date=base,
     )
     wm_before = state_watermark()
@@ -219,14 +231,12 @@ def main() -> int:
         "where cast(_scd_valid_from as date) > cast(event_timestamp as date)"
     )[0][0]
     # Had the pipeline bucketed by ingestion instead, the stored per-day totals
-    # would not reconcile with a straight group-by of the raw source.
+    # would not reconcile with a straight group-by of the raw source, read on
+    # the business clock as of the newest run.
     mismatch = query(f"""
         with raw as (
-            select cast(event_timestamp as date) as event_date, count(*) as n
-            from bronze_events.customer_login
-            where _scd_valid_from <= date '{horizon}'
-              and customer_id is not null
-              and cast(event_timestamp as date) <= date '{horizon}'
+            select event_date, count(*) as n
+            from ({oracle.events_as_of(REGISTRY, horizon, date.fromisoformat(horizon))})
             group by 1
         ),
         stored as (
@@ -265,13 +275,13 @@ def main() -> int:
 
     # --- 5. revision window -------------------------------------------------
     print("\n=== SCENARIO 5: the revision window rebuilds past partitions exactly ===")
-    late = 3
+    late = REGISTRY.late_arrival_days
     day = frontier()
     window = [shift(day, -i) for i in range(1, late + 1)]
     print(f"  (rebuilding {', '.join(window)} behind the frontier {day})")
     ok_all = True
     for d in window:
-        res = dbt_run("build", "--select", "tag:fact_agg_features_login_history_v2", target_date=d)
+        res = dbt_run("build", "--select", f"tag:{FEATURE}", target_date=d)
         built = res.returncode == 0
         exact = brute_force_matches(d) if built else False
         ok_all &= built and exact
@@ -297,7 +307,7 @@ def main() -> int:
     res = dbt_run(
         "test",
         "--select",
-        "assert_fact_agg_features_login_history_v2_state_watermark",
+        WATERMARK_GUARD,
         target_date=behind,
         quiet=False,
     )
@@ -309,7 +319,7 @@ def main() -> int:
     res = dbt_run(
         "test",
         "--select",
-        "assert_fact_agg_features_login_history_v2_state_watermark",
+        WATERMARK_GUARD,
         target_date=shift(wm, 1),
         quiet=False,
     )
@@ -326,16 +336,15 @@ def main() -> int:
     # gets published, and must never decide who the accumulator remembers.
     print("\n=== SCENARIO 7: each spec honours its own entity_spine ===")
 
-    for reg_path in sorted(REGISTRY_DIR.glob("*.json")):
-        registry = json.loads(reg_path.read_text())
-        name = registry["feature_name"]
-        spine = registry["settings"]["entity_spine"]
-        mart = f"marts.{name}"
-        state = f"intermediate.{registry['models']['alltime_state']}"
+    for registry in Registry.load_dir(REGISTRY_DIR):
+        name = registry.feature_name
+        spine = registry.entity_spine
+        mart = f"marts.{registry.models.mart}"
+        state = f"intermediate.{registry.models.alltime_state}"
         count_col = next(
-            f["name"]
-            for f in registry["features"]
-            if f["agg"] == "count" and f["window"] == "all_time" and f["is_marginal"]
+            f.name
+            for f in registry.features
+            if f.agg == "count" and f.window == "all_time" and f.is_marginal
         )
         print(f"\n  {name}  [{spine}]")
 
@@ -368,7 +377,7 @@ def main() -> int:
                 f"{unpublished} held but unpublished",
             )
         else:
-            widest = max(f["window_days"] for f in registry["features"] if f["window_days"])
+            widest = registry.widest_window_days
             passed &= check(
                 "the narrowed spine actually drops dormant entities",
                 bool(dropped),
@@ -399,8 +408,136 @@ def main() -> int:
                 f"{stale} stale row(s)",
             )
 
+    passed &= scenario_correction()
+
     print("\n" + ("ALL SCENARIOS PASSED" if passed else "SCENARIOS FAILED"))
     return 0 if passed else 1
+
+
+def execute(sql: str) -> None:
+    con = duckdb.connect(str(DB))
+    try:
+        con.execute(sql)
+    finally:
+        con.close()
+
+
+def kmv_matches(day: str) -> bool:
+    """The sketch verifier doubles as an exact oracle for the other spec below k."""
+    res = subprocess.run(
+        [str(PYTHON), "-m", "tools.verify_kmv_accuracy", day],
+        cwd=SHOWCASE,
+        capture_output=True,
+        text=True,
+    )
+    if res.returncode != 0:
+        print(res.stdout)
+    return res.returncode == 0
+
+
+def scenario_correction() -> bool:
+    """CORRECTION: upstream changes to a day the accumulator sealed long ago.
+
+    The source is SCD2. A correction closes a row version and opens its
+    successor; a deletion closes it with none. Either can land on any day,
+    however old, as can an event that simply arrives very late. None of them
+    may be lost: the next run has to find the days they changed, rewrite
+    them, and re-fold every entity whose sealed all_time state they reach.
+
+    The one case with nothing left to fold -- an entity whose only event is
+    deleted -- must disappear from both marts rather than linger as zeros.
+
+    This mutates the source, so it runs last.
+    """
+    print("\n=== SCENARIO 8: corrections, deletions and very late arrivals are folded in ===")
+    passed = True
+    src = "bronze_events.customer_login"
+    run = shift(frontier(), 1)
+    sealed = shift(state_watermark(), -10)
+    # Inside the next run's day on every spec's clock, and after the last one's.
+    known = f"timestamp '{run} 12:00:00'"
+    utc_date = "cast(event_timestamp as date)"
+
+    corrected, deleted = (
+        r[0]
+        for r in query(f"""
+            select event_id from {src}
+            where {utc_date} = date '{sealed}' and upper(event_status) = 'SUCCESS'
+            order by event_id limit 2
+        """)
+    )
+    # The single-event cohort: its only row going away empties the entity.
+    (vanishing, vanishing_event) = query(f"""
+        select customer_id, min(event_id) from {src}
+        where {utc_date} < date '{sealed}'
+        group by customer_id having count(*) = 1
+        order by customer_id limit 1
+    """)[0]
+    (very_late_customer,) = query(f"""
+        select customer_id from {src} where event_id = '{corrected}'
+    """)[0]
+    print(
+        f"  (as of {run}: on {sealed} correcting {corrected} to FAILED, deleting {deleted}, "
+        f"adding a very late event for {very_late_customer}; deleting {vanishing}'s only "
+        f"event {vanishing_event})"
+    )
+
+    execute(f"""
+        insert into {src}
+        select event_id, customer_id, device_id, event_timestamp, login_source, os_name,
+               'FAILED', {known}, timestamp '9999-12-31'
+        from {src} where event_id = '{corrected}';
+
+        insert into {src}
+        select 'evt_very_late', customer_id, device_id,
+               event_timestamp + interval 1 minute, login_source, os_name, event_status,
+               {known}, timestamp '9999-12-31'
+        from {src} where event_id = '{corrected}';
+
+        update {src} set _scd_valid_to = {known}
+        where event_id in ('{corrected}', '{deleted}', '{vanishing_event}')
+          and _scd_valid_from < {known};
+    """)
+
+    dbt("run", target_date=run)
+    passed &= check(
+        f"{FEATURE} matches brute force after the changes (at {run})",
+        brute_force_matches(run),
+    )
+    passed &= check(
+        "fact_agg_features_login_device_v1 is exact below k after the changes",
+        kmv_matches(run),
+    )
+
+    for registry in Registry.load_dir(REGISTRY_DIR):
+        mart = f"marts.{registry.models.mart}"
+        (lingering,) = query(f"""
+            select count(*) from {mart}
+            where target_date = date '{run}' and safe_id = '{vanishing}'
+        """)[0]
+        passed &= check(
+            f"{registry.feature_name}: an entity with no events left is not published",
+            lingering == 0,
+            f"{lingering} row(s) for {vanishing}",
+        )
+
+    (tombstones,) = query(f"""
+        select count(*) from {PARTIALS_TABLE}
+        where safe_id = '{vanishing}' and _n_rows = 0
+    """)[0]
+    passed &= check(
+        "the emptied entity-day is stored as a tombstone, not left stale",
+        tombstones == 1,
+        f"{tombstones} tombstone row(s)",
+    )
+
+    before = fingerprint(run)
+    dbt("run", target_date=run)
+    passed &= check(
+        "re-running the date after the restatement changes nothing",
+        fingerprint(run) == before,
+    )
+    return passed
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@
 --   layer      : intermediate / bounded window roll-up
 --   feature    : fact_agg_features_login_device_v1
 --   spec       : features/fact_agg_features_login_device_v1.yml
---   spec hash  : 01ce520f1167
+--   spec hash  : e1ebed8aec82
 --   generator  : featuremart
 --
 -- Edit the spec and run `make generate`. CI fails when a generated file
@@ -14,6 +14,9 @@
 
 -- Folds at most 30 rows of stored partial state per entity into the
 -- bounded windows. Nothing is recomputed from the raw source here.
+--
+-- An entity whose rows in the widest window are all tombstones has no
+-- activity there, so it is left out exactly as if it had never had any.
 
 {{ config(materialized='view', tags=['feature_store', 'fact_agg_features_login_device_v1']) }}
 
@@ -28,11 +31,14 @@ with bounds as (
 
 partials as (
 
-    select p.*, b.*
-    from {{ ref('int_fact_agg_features_login_device_v1__daily_partials') }} p
-    cross join bounds b
-    where p.event_date >= b.lo_l30d
-      and p.event_date <= b.d_hi
+    select
+        p.*,
+        b.*
+    from {{ ref('int_fact_agg_features_login_device_v1__daily_partials') }} as p
+    cross join bounds as b
+    where
+        p.event_date >= b.lo_l30d
+        and p.event_date <= b.d_hi
 
 )
 
@@ -70,6 +76,7 @@ select
     {{ fs_array_size(fs_array_union_agg("case when event_date >= lo_l7d then p_count_distinct_login_source_is_login_failed end")) }} as count_distinct_login_source_is_login_failed_l7d,
     {{ fs_array_size(fs_array_union_agg("p_count_distinct_login_source_is_login_failed")) }} as count_distinct_login_source_is_login_failed_l30d,
 
-    max(event_date) as _rollup_last_event_date
+    max(case when _n_rows > 0 then event_date end) as _rollup_last_event_date
 from partials
 group by safe_id
+having sum(_n_rows) > 0

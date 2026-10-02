@@ -4,13 +4,15 @@
 --   layer      : test / all_time state is usable for this as-of date
 --   feature    : fact_agg_features_login_history_v2
 --   spec       : features/fact_agg_features_login_history_v2.yml
---   spec hash  : 6c9b3cc88a21
+--   spec hash  : a7a086250bfc
 --   generator  : featuremart
 --
 -- Edit the spec and run `make generate`. CI fails when a generated file
 -- differs from what the spec produces, so this file and the spec cannot
 -- drift apart.
 -- ============================================================================
+
+{{ config(group='data_platform') }}
 
 -- The accumulator is a single forward-only fold, so its watermark is global
 -- while a mart partition is per-date. This asserts the one relationship

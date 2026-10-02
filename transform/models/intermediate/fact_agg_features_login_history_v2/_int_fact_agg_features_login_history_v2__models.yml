@@ -1,0 +1,108 @@
+# ============================================================================
+# GENERATED FILE - DO NOT EDIT BY HAND
+#   feature   : fact_agg_features_login_history_v2
+#   spec hash : a7a086250bfc
+#   Edit the spec and run `make generate`.
+# ============================================================================
+version: 2
+models:
+- name: int_fact_agg_features_login_history_v2__events
+  description: 'Every row version of bronze_events.customer_login through this spec''s projection, with
+    timestamps on the business clock (Asia/Jakarta). Not bound to an as-of date: the partial layer decides
+    what each run may see.'
+  config: &id001
+    access: private
+    group: data_platform
+  columns:
+  - name: event_date
+    description: Date of the event on the business clock (Asia/Jakarta).
+    data_tests:
+    - not_null
+  - name: _fs_loaded_at
+    description: When this row version became visible, in UTC.
+  - name: _fs_superseded_at
+    description: When it was replaced or deleted, in UTC; NULL if never.
+- name: int_fact_agg_features_login_history_v2__daily_partials
+  description: 'Reusable per-entity, per-event_date partial aggregate state. Composable by construction:
+    every published window is a fold over these rows.'
+  config: *id001
+  data_tests:
+  - fs_unique_combination:
+      arguments:
+        combination_of_columns:
+        - safe_id
+        - event_date
+  columns:
+  - name: event_date
+    description: Calendar date of the events summarised by this row.
+    data_tests:
+    - not_null
+  - name: safe_id
+    description: Entity key (safe_id).
+    data_tests:
+    - not_null
+  - name: _n_rows
+    description: 'Source rows folded into this row. 0 marks a tombstone: an entity-day whose every row
+      was superseded, holding each aggregation''s identity.'
+    data_tests:
+    - not_null
+  - name: _computed_for
+    description: As-of date of the run that wrote this row.
+    data_tests:
+    - not_null
+  - name: _known_through
+    description: UTC instant that run's knowledge ended. The next run looks for changes loaded or superseded
+      from here on.
+    data_tests:
+    - not_null
+  - &id002
+    name: _state_version
+    description: Fingerprint of what the stored state means (dfceaf462f00). Every row must carry the current
+      one; a generated test fails the build if not.
+- name: int_fact_agg_features_login_history_v2__window_rollup
+  description: Bounded-window features per entity, folded from partials.
+  config: *id001
+  data_tests:
+  - fs_unique_combination:
+      arguments:
+        combination_of_columns:
+        - safe_id
+- name: int_fact_agg_features_login_history_v2__alltime_state
+  description: Sealed all_time accumulator, one row per entity. Advances only over event_dates past their
+    provisional window; an entity whose sealed history changes afterwards is re-folded from its stored
+    days.
+  config: *id001
+  data_tests:
+  - fs_unique_combination:
+      arguments:
+        combination_of_columns:
+        - safe_id
+  columns:
+  - name: safe_id
+    description: Entity key (safe_id).
+    data_tests:
+    - not_null
+  - name: _state_as_of_date
+    description: 'Watermark: every event_date at or before this has been folded in. Drives the self-healing,
+      idempotent catch-up range.'
+    data_tests:
+    - not_null
+  - name: _folded_through
+    description: UTC instant the knowledge of the run that wrote this row ended. A partial rewritten after
+      the newest of these, on a sealed day, restates its entity.
+    data_tests:
+    - not_null
+  - name: _n_rows
+    description: Source rows folded in. 0 when every event was since superseded; such an entity is not
+      published.
+    data_tests:
+    - not_null
+  - *id002
+- name: int_fact_agg_features_login_history_v2__alltime_recent
+  description: all_time state for the days after the watermark.
+  config: *id001
+  data_tests:
+  - fs_unique_combination:
+      arguments:
+        combination_of_columns:
+        - safe_id
