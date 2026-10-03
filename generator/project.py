@@ -114,7 +114,9 @@ def render_staging_model(table: SourceTable) -> str:
         {{{{ config(materialized='view', tags=['feature_store']) }}}}
 
         select
-            src.*,
+            -- Every column, on purpose: specs name the ones they read, and a
+            -- 1:1 staging model has no business choosing among them.
+            src.*,  -- noqa: AM04
             {to_utc(rel.loaded_at)} as {LOADED_AT},
             {superseded} as {SUPERSEDED_AT}
         from {rel.dbt_source} as src

@@ -23,7 +23,9 @@
 {{ config(materialized='view', tags=['feature_store']) }}
 
 select
-    src.*,
+    -- Every column, on purpose: specs name the ones they read, and a
+    -- 1:1 staging model has no business choosing among them.
+    src.*,  -- noqa: AM04
     {{ fs_convert_tz('src._scd_valid_from', 'UTC', 'UTC') }} as _fs_loaded_at,
     {{ fs_convert_tz('src._scd_valid_to', 'UTC', 'UTC') }} as _fs_superseded_at
 from {{ source('bronze_events', 'customer_login') }} as src
